@@ -1,0 +1,15 @@
+# Copy to ~/.config/localseek/config.toml (Windows: %APPDATA%\localseek\config.toml)
+
+# Any model supported by fastembed. For non-English documents choose a multilingual model,
+# for example "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2".
+# Changing the model requires: localseek update --rebuild
+model = "BAAI/bge-small-en-v1.5"
+
+chunk_words = 220      # target chunk size, in words
+overlap_words = 30     # words repeated between neighbouring chunks
+max_file_mb = 50       # skip files larger than this
+
+# Extra glob patterns to ignore, added to the built-in list (.git, node_modules, ...).
+ignore = ["*.tmp", "drafts/*"]
+
+# db_path = "~/.local/share/localseek/index.db"

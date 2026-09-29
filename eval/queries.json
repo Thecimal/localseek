@@ -1,0 +1,9 @@
+[
+  {"query": "who promised to fix the radiators", "expected": "lease-notes.md"},
+  {"query": "how often do I feed my starter", "expected": "sourdough.md"},
+  {"query": "guest wifi network setup", "expected": "router-setup.md"},
+  {"query": "what to pack for the mountain trek", "expected": "hiking-alps.md"},
+  {"query": "why was the launch delayed", "expected": "meeting-q3.md"},
+  {"query": "squeaky brakes and chain care", "expected": "bike-maintenance.md"},
+  {"query": "how much am I saving each month", "expected": "budget-2026.md"}
+]

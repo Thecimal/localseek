@@ -1,0 +1,3 @@
+Oven OV-3300S quick reference
+
+Preheating takes about 12 minutes to 200 degrees. Error F13 means a temperature sensor fault: switch the oven off at the fuse for one minute and switch it back on. If F13 returns the oven will not heat and the sensor has to be replaced by a technician.

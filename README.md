@@ -107,6 +107,46 @@ The script indexes a folder and reports recall@1/5/10 and MRR for vector, keywor
 queries with known answers. Use `--model hash` for a quick, lexical-only baseline without any download. Replace the
 sample corpus and queries with your own documents for numbers that mean something for your data.
 
+Each query names its relevant documents by path **relative to the corpus folder**, so files with the same name in
+different folders stay distinct:
+
+```json
+{"query": "bread fermentation", "relevant": ["recipes/sourdough.md", "recipes/fermentation.md"]}
+```
+
+Recall@k is the fraction of a query's relevant documents found in the top k results, and MRR uses the rank of the first
+relevant document. The script validates the dataset before indexing (malformed JSON, empty or duplicate entries, paths
+that are absolute, outside the corpus, missing, or not indexable) and exits with status 2 and a list of problems.
+
+### Benchmark
+
+`eval/benchmark/` holds a larger benchmark: 62 mixed-format documents and 97 queries across eleven categories
+(paraphrases, error codes, near-duplicate documents, answers deep inside long files, and more), each judgment backed by
+an exact quote. Run it with `--by-category` to see where retrieval is weak. See `eval/benchmark/README.md` for what it
+covers, what it does not, and the rules for changing it. The small `examples/corpus` set remains a quick demo.
+
+### Quality gate
+
+By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops:
+
+```bash
+python eval/run_eval.py --corpus examples/corpus --queries eval/queries.json --model hash --thresholds my-thresholds.json
+```
+
+```json
+{"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
+```
+
+The numbers above only illustrate the format; the repository does not ship thresholds yet. Valid metrics are
+`recall@1`, `recall@5`, `recall@10`, and `mrr`; valid modes are `hybrid`, `vector`, and `keyword`. Unlisted modes and
+metrics are reported but not checked, and unknown names are rejected so a typo cannot silently disable a check.
+
+| Exit status | Meaning |
+|---|---|
+| 0 | Success, and every threshold was met (or none were given) |
+| 1 | At least one threshold was not met; each failure is listed on stderr, e.g. `hybrid recall@1: 0.714 < required 0.850` |
+| 2 | Invalid corpus, dataset, or thresholds file |
+
 ## Limitations
 
 - Scanned PDFs and images have no extractable text. OCR is not supported yet, and such files are reported and skipped.

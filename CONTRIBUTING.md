@@ -19,7 +19,7 @@ The tests use a built-in hashing embedder, so they run without downloading a mod
 - **A new file format.** Write `extract_xxx(path) -> list[Section]` in `src/localseek/extractors/`, register the
   suffix in `extractors/__init__.py`, and add a test in `tests/test_extractors.py`. Raise `ExtractionError` with a
   clear message when a file cannot be read.
-- **More evaluation data.** Add queries and documents under `eval/` and `examples/`.
+- **More evaluation data.** Add queries and documents under `eval/` and `examples/`. Queries list `relevant` documents as paths relative to the corpus folder; see the README.
 - **Docs and error messages.** If something confused you, fix the wording.
 
 ## Ground rules

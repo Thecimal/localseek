@@ -1,0 +1,3 @@
+Washing machine WM-4410X quick guide
+
+Maximum load is 7 kg. Error E24 means the drain pump is blocked: unplug the machine, open the filter flap at the bottom right, and clear coins and lint from the filter. Error E10 indicates a water inlet fault; check that the tap is fully open and that the inlet hose is not kinked.

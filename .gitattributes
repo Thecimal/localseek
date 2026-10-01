@@ -1,0 +1,4 @@
+# Benchmark fixtures must stay byte-for-byte identical: PDF cross-reference offsets and DOCX zip data break
+# under line-ending conversion (for example Windows checkouts with core.autocrlf).
+*.pdf binary
+*.docx binary

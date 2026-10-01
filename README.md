@@ -1,10 +1,13 @@
 # localseek
 
 <!-- Tests Badge -->
-[![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/9cd0bd2162.../raw/localseek-junit-tests.json)](https://github.com/Thecimal/localseek/actions)
+[![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/54b6d06aa7fa3f825c99d9727994276a/raw/localseek-junit-tests.json)](https://github.com/Thecimal/localseek/actions)
 
 <!-- Coverage Badge -->
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/9cd0bd2162.../raw/localseek-cobertura-coverage.json)](https://github.com/Thecimal/localseek/actions)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/54b6d06aa7fa3f825c99d9727994276a/raw/localseek-cobertura-coverage.json)](https://github.com/Thecimal/localseek/actions)
+
+<!-- Flat Square Style -->
+[![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/54b6d06aa7fa3f825c99d9727994276a/raw/localseek-junit-tests.json&style=flat-square)](https://github.com/Thecimal/localseek/actions)
 
 Private, on-device semantic search for your own documents.
 

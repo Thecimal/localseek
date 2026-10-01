@@ -28,3 +28,9 @@ jobs:
         run: ruff check src tests eval
       - name: Test
         run: pytest -q
+      - name: Update Badges
+        uses: gaelgirodon/ci-badges-action@v1
+        with:
+            gist-id: '54b6d06aa7fa3f825c99d9727994276a' # Replace with your full Gist ID
+            token: ${{ secrets.GIST_TOKEN }}z
+        

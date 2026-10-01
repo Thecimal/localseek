@@ -1,0 +1,3 @@
+WireGuard VPN notes
+
+Client interface address 10.8.0.2/24. If the handshake does not complete, or pages hang over mobile data, lower the MTU to 1380 in the interface section. Keep PersistentKeepalive at 25 seconds so the tunnel survives behind carrier NAT.

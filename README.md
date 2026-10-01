@@ -125,6 +125,10 @@ that are absolute, outside the corpus, missing, or not indexable) and exits with
 an exact quote. Run it with `--by-category` to see where retrieval is weak. See `eval/benchmark/README.md` for what it
 covers, what it does not, and the rules for changing it. The small `examples/corpus` set remains a quick demo.
 
+Every run begins by printing the model, chunk settings, library versions and content fingerprints of the corpus and
+queries, so two runs can be compared. `--show-misses` lists the queries whose first relevant document is not the top
+result, and `--json FILE` saves the whole run (configuration and all metrics) in machine-readable form.
+
 ### Quality gate
 
 By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops:

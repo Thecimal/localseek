@@ -10,9 +10,12 @@ Dataset format: a non-empty JSON list of objects
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import platform
 import time
+from importlib import metadata
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -299,3 +302,114 @@ def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) -> 
 
 def count_checks(thresholds: Thresholds) -> int:
     return sum(len(wanted) for wanted in thresholds.values())
+
+
+# -- reporting: misses and run record --------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Trace:
+    """What one query returned: the ranked corpus-relative paths and where the first relevant one landed."""
+
+    query: Query
+    ranked: tuple[str, ...]
+    first_rank: int | None  # 1-based; None when no relevant document was returned
+
+
+def trace_queries(searcher, queries: Sequence[Query], root: Path, mode: str, limit: int = max(KS)) -> list[Trace]:
+    traces = []
+    for query in queries:
+        ranked = tuple(relative_path(h.path, root) for h in searcher.search(query.text, limit=limit, mode=mode))
+        wanted = set(query.relevant)
+        first = next((rank for rank, path in enumerate(ranked, start=1) if path in wanted), None)
+        traces.append(Trace(query, ranked, first))
+    return traces
+
+
+def misses(traces: Iterable[Trace]) -> list[Trace]:
+    """Queries whose first relevant document is not the top result."""
+    return [t for t in traces if t.first_rank != 1]
+
+
+def format_miss(trace: Trace, limit: int = max(KS), width: int = 72) -> list[str]:
+    text = trace.query.text if len(trace.query.text) <= width else trace.query.text[: width - 1] + "…"
+    where = f"rank {trace.first_rank}" if trace.first_rank else f"not in top {limit}"
+    category = trace.query.category or "uncategorized"
+    top = trace.ranked[0] if trace.ranked else "(no results)"
+    return [
+        f"  {category:<20} {where:<14} {text!r}",
+        f"      top hit: {top}   wanted: {', '.join(trace.query.relevant)}",
+    ]
+
+
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _stable_bytes(path: Path) -> bytes:
+    """File bytes, with line endings normalised for text so the same content hashes the same on every OS."""
+    data = path.read_bytes()
+    if path.suffix.lower() in {".pdf", ".docx", ".epub"}:
+        return data
+    return data.replace(b"\r\n", b"\n")
+
+
+def dataset_fingerprint(path: str | Path) -> str:
+    return _digest(_stable_bytes(Path(path)))
+
+
+def corpus_fingerprint(root: Path) -> str:
+    """Hash of every file's relative path and content, independent of platform line endings and file order."""
+    lines = sorted(
+        f"{p.relative_to(root).as_posix()}\0{_digest(_stable_bytes(p))}" for p in root.rglob("*") if p.is_file()
+    )
+    return _digest("\n".join(lines).encode("utf-8"))
+
+
+def _version(package: str) -> str:
+    try:
+        return metadata.version(package)
+    except metadata.PackageNotFoundError:
+        return "not installed"
+
+
+def environment_info(
+    model: str, settings, queries_path: str | Path, corpus_path: str | Path, root: Path, queries: Sequence[Query]
+) -> dict:
+    """Everything needed to tell whether two runs are comparable."""
+    return {
+        "model": model,
+        "chunk_words": settings.chunk_words,
+        "overlap_words": settings.overlap_words,
+        "dataset": {"path": str(queries_path), "queries": len(queries), "sha256": dataset_fingerprint(queries_path)},
+        "corpus": {
+            "path": str(corpus_path),
+            "files": sum(1 for p in root.rglob("*") if p.is_file()),
+            "sha256": corpus_fingerprint(root),
+        },
+        "versions": {
+            "python": platform.python_version(),
+            "localseek": _version("localseek"),
+            "fastembed": _version("fastembed"),
+            "numpy": _version("numpy"),
+        },
+        "platform": platform.platform(),
+    }
+
+
+def format_environment(info: dict) -> list[str]:
+    v, d, c = info["versions"], info["dataset"], info["corpus"]
+    return [
+        f"model:    {info['model']}",
+        f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
+        f"dataset:  {d['path']}  ({d['queries']} queries, sha256 {d['sha256'][:12]})",
+        f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
+        f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",
+        f"platform: {info['platform']}",
+    ]
+
+
+def result_record(result: ModeResult) -> dict:
+    values = metric_values(result)
+    values["latency_ms"] = result.latency_ms
+    return values

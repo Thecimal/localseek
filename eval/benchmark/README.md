@@ -60,6 +60,24 @@ recall@1. In `redundant_answer` any one document suffices, so MRR is the fairer 
 near-duplicates (by text similarity), and a minimum number of queries per category. It runs no searches, so it cannot
 be satisfied by tuning the data to an algorithm.
 
+## Recording and comparing runs
+
+Every run prints its configuration first: model, chunk settings, library versions, and a content fingerprint of the
+corpus and of the query file. Fingerprints are SHA-256 over file contents with text line endings normalised, so the
+same benchmark hashes the same on Linux, macOS and Windows, and any edit to a document or query changes them. Two runs
+are comparable only if their fingerprints match.
+
+Fingerprints of benchmark v1: corpus `39c2e84b7a80`, queries `8a99ed3d727d` (first 12 hex digits).
+
+```bash
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json \
+    --by-category --show-misses --json run.json
+```
+
+`--show-misses` lists, for each mode, the queries whose first relevant document is not the top result, with the rank
+it reached and what ranked first. `--json` writes the same configuration plus every metric (overall, per category)
+for archiving or diffing; it records the corpus path as given on the command line, not an absolute path.
+
 ## Rules for changing it
 
 1. Write documents and queries **before** looking at any retrieval results.

@@ -23,13 +23,19 @@ from retrieval_eval import (  # noqa: E402
     ThresholdError,
     check_indexed,
     check_thresholds,
+    corpus_fingerprint,
     count_checks,
+    dataset_fingerprint,
+    environment_info,
     evaluate,
     evaluate_by_category,
+    format_miss,
     load_dataset,
     load_thresholds,
+    misses,
     relative_path,
     score_query,
+    trace_queries,
 )
 
 MODES = ("hybrid", "vector", "keyword")
@@ -167,6 +173,99 @@ class CategoryTests(EvalBase):
         self.assertEqual(grouped["miss"].recall[10], 0.0)
         self.assertEqual(grouped["uncategorized"].mrr, 0.0)
         store.close()
+
+
+class FingerprintTests(EvalBase):
+    def copy_corpus(self, name, transform=lambda path, data: data):
+        target = self.dir / name
+        for path in self.root.rglob("*"):
+            if path.is_file():
+                out = target / path.relative_to(self.root)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_bytes(transform(path, path.read_bytes()))
+        return target.resolve()
+
+    def test_text_line_endings_do_not_change_the_fingerprint(self):
+        crlf = self.copy_corpus("crlf", lambda path, data: data.replace(b"\n", b"\r\n"))
+        self.assertEqual(corpus_fingerprint(self.root), corpus_fingerprint(crlf))
+        lf, windows = self.dir / "a.json", self.dir / "b.json"
+        lf.write_bytes(b'[\n  {"query": "x"}\n]\n')
+        windows.write_bytes(b'[\r\n  {"query": "x"}\r\n]\r\n')
+        self.assertEqual(dataset_fingerprint(lf), dataset_fingerprint(windows))
+
+    def test_content_name_and_new_files_change_the_fingerprint(self):
+        base = corpus_fingerprint(self.root)
+        edited = self.copy_corpus("edited", lambda p, d: d.replace(b"Feed", b"Skip") if p.name == "sourdough.md" else d)
+        self.assertNotEqual(base, corpus_fingerprint(edited))
+        renamed = self.copy_corpus("renamed")
+        (renamed / "work" / "notes.md").rename(renamed / "work" / "memo.md")
+        self.assertNotEqual(base, corpus_fingerprint(renamed))
+        added = self.copy_corpus("added")
+        write(added / "extra.md", "one more file")
+        self.assertNotEqual(base, corpus_fingerprint(added))
+
+    def test_binary_files_are_hashed_as_is(self):
+        one, two = self.copy_corpus("one"), self.copy_corpus("two")
+        (one / "doc.pdf").write_bytes(b"%PDF line\nbreak")
+        (two / "doc.pdf").write_bytes(b"%PDF line\r\nbreak")
+        self.assertNotEqual(corpus_fingerprint(one), corpus_fingerprint(two))
+
+    def test_environment_record_is_complete_and_has_no_absolute_corpus_path(self):
+        path = self.dataset([{"query": "q", "relevant": ["notes.md"]}])
+        queries = load_dataset(path, self.root)
+        info = environment_info("hash", Settings(model="hash"), path, "corpus", self.root, queries)
+        self.assertEqual(info["model"], "hash")
+        self.assertEqual((info["chunk_words"], info["overlap_words"]), (220, 30))
+        self.assertEqual(info["corpus"], {"path": "corpus", "files": 4, "sha256": corpus_fingerprint(self.root)})
+        self.assertEqual(info["dataset"]["queries"], 1)
+        self.assertEqual({"python", "localseek", "fastembed", "numpy"}, set(info["versions"]))
+        self.assertNotIn(str(self.dir), json.dumps(info["corpus"]))  # the corpus path is recorded as given
+
+
+class TraceTests(EvalBase):
+    def setUp(self):
+        super().setUp()
+        self.store = Store(self.dir / "i.db")
+        self.embedder = HashEmbedder()
+        index_paths(self.store, self.embedder, [self.root], Settings(model="hash"))
+        self.searcher = Searcher(self.store, self.embedder)
+
+    def tearDown(self):
+        self.store.close()
+        super().tearDown()
+
+    def trace(self, text, relevant):
+        return trace_queries(self.searcher, [Query(text, tuple(relevant), "demo")], self.root, "keyword")[0]
+
+    def test_top_hit_is_not_a_miss(self):
+        trace = self.trace("tax invoice deadlines", ["work/notes.md"])
+        self.assertEqual(trace.first_rank, 1)
+        self.assertEqual(misses([trace]), [])
+
+    def test_lower_rank_is_reported_with_its_position(self):
+        trace = self.trace("sourdough starter feeding schedule flour ratios", ["recipes/sourdough.md"])
+        self.assertEqual(trace.first_rank, 2)
+        self.assertEqual(trace.ranked[0], "recipes/notes.md")
+        self.assertEqual(misses([trace]), [trace])  # found, but not first, still counts as a miss
+        lines = "\n".join(format_miss(trace))
+        self.assertIn("rank 2", lines)
+        self.assertIn("top hit: recipes/notes.md", lines)
+        self.assertIn("wanted: recipes/sourdough.md", lines)
+
+    def test_absent_relevant_document_is_reported_as_not_in_top_k(self):
+        trace = self.trace("tax invoice deadlines", ["recipes/sourdough.md"])
+        self.assertIsNone(trace.first_rank)
+        self.assertEqual(misses([trace]), [trace])
+        self.assertIn("not in top 10", "\n".join(format_miss(trace)))
+
+    def test_query_with_no_results_is_handled(self):
+        trace = self.trace("zzzzqqqq", ["notes.md"])
+        self.assertEqual(trace.ranked, ())
+        self.assertIn("(no results)", "\n".join(format_miss(trace)))
+
+    def test_long_queries_are_truncated_in_the_report(self):
+        trace = self.trace("tax " * 80, ["work/notes.md"])
+        self.assertLess(len(format_miss(trace)[0]), 140)
 
 
 class IndexedCheckTests(EvalBase):
@@ -404,6 +503,47 @@ class CliTests(EvalBase):
         self.assertIn("Indexed 62 files", result.stdout)
         for category in ("semantic_paraphrase", "late_answer", "near_duplicate"):
             self.assertIn(category, result.stdout)
+
+    def test_run_record_is_printed_first(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"]}]
+        result = self.run_cli(self.dataset(data))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        head = result.stdout.split("Indexed")[0]
+        for label in ("model:    hash", "chunking: 220 words, 30 overlap", "dataset:", "corpus:", "versions:"):
+            self.assertIn(label, head)
+        self.assertRegex(head, r"sha256 [0-9a-f]{12}")
+
+    def test_show_misses_lists_failures_per_mode(self):
+        data = [
+            {"query": "tax invoice deadlines", "relevant": ["work/notes.md"]},
+            {"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"], "category": "wrong"},
+        ]
+        result = self.run_cli(self.dataset(data), extra=["--show-misses"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[keyword] 1 of 2", result.stdout)
+        self.assertIn("not in top 10", result.stdout)
+        self.assertIn("wanted: recipes/sourdough.md", result.stdout)
+
+    def test_json_record_matches_the_printed_run(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"}]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"recall@1": 1.0}}, extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(record["environment"]["model"], "hash")
+        self.assertEqual(record["results"]["keyword"]["recall@1"], 1.0)
+        self.assertEqual(set(record["by_category"]["keyword"]), {"exact"})
+        self.assertEqual(record["gate"], {"checks": 1, "failures": []})
+        self.assertEqual(set(record["misses"]), {"hybrid", "vector", "keyword"})
+        self.assertIn(record["environment"]["corpus"]["sha256"][:12], result.stdout)
+
+    def test_json_records_gate_failures_and_still_exits_1(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"]}]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"mrr": 0.5}}, extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 1)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(len(record["gate"]["failures"]), 1)
 
     def test_shipped_dataset_is_valid(self):
         result = self.run_cli(REPO / "eval" / "queries.json", corpus=REPO / "examples" / "corpus")

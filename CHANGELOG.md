@@ -14,6 +14,9 @@
 - Eval: new benchmark in `eval/benchmark/` (62 documents in five formats, 97 queries in eleven categories, evidence
   for every relevance judgment) and a `--by-category` report. `tests/test_benchmark.py` keeps its composition and
   judgments honest without running any search. No-answer and multilingual queries are not covered yet.
+- Eval: runs now print and record their configuration (model, chunk settings, library versions, SHA-256 fingerprints
+  of the corpus and query file, stable across operating systems). New `--show-misses` lists queries whose first
+  relevant result is not rank 1, and `--json FILE` saves the full run.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

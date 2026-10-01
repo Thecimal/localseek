@@ -1,5 +1,11 @@
 # localseek
 
+<!-- Tests Badge -->
+[![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/9cd0bd2162.../raw/localseek-junit-tests.json)](https://github.com/Thecimal/localseek/actions)
+
+<!-- Coverage Badge -->
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Thecimal/9cd0bd2162.../raw/localseek-cobertura-coverage.json)](https://github.com/Thecimal/localseek/actions)
+
 Private, on-device semantic search for your own documents.
 
 Point it at a few folders and search them by meaning, not just exact words:

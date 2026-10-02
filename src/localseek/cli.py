@@ -220,6 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    ctx = None
     try:
         ctx = Context(args)
         return args.func(ctx, args)
@@ -234,3 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except KeyboardInterrupt:
         return 130
+    finally:
+        # An open SQLite connection locks the database file on Windows until it is garbage-collected.
+        if ctx is not None:
+            ctx.store.close()

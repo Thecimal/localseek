@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from helpers import write
 from localseek.cli import main
@@ -59,6 +60,33 @@ class CliTests(unittest.TestCase):
         code, _, err = run(*self.base(), "search", "anything")
         self.assertEqual(code, 1)
         self.assertIn("localseek index", err)
+
+    def test_store_is_closed_after_every_command(self):
+        # Windows cannot delete a database file that still has an open connection.
+        import localseek.cli as cli
+
+        opened = []
+
+        class Tracking(cli.Store):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.closed = False
+                opened.append(self)
+
+            def close(self):
+                self.closed = True
+                super().close()
+
+        with mock.patch.object(cli, "Store", Tracking):
+            run(*self.base(), "index", str(self.docs))
+            run(*self.base(), "search", "guest")
+            run(*self.base(), "status")
+            code, _, _ = run("--db", str(self.dir / "empty.db"), "--model", "hash", "search", "x")
+            self.assertEqual(code, 1)  # error path: nothing indexed
+            with self.assertRaises(SystemExit):  # error path: invalid --since
+                run(*self.base(), "search", "--since", "yesterday", "x")
+        self.assertEqual(len(opened), 5)
+        self.assertTrue(all(store.closed for store in opened))
 
     def test_bad_since_value(self):
         run(*self.base(), "index", str(self.docs))

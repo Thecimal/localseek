@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import platform
+import re
 import time
 from importlib import metadata
 from collections.abc import Iterable, Sequence
@@ -65,11 +66,11 @@ def relative_path(path: str | Path, root: Path) -> str:
 def _path_problem(value: object, root: Path) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return "must be a non-empty string"
+    pure = PurePosixPath(value)
+    if pure.is_absolute() or re.match(r"[A-Za-z]:[\\/]", value) or value.startswith("\\\\"):
+        return "must be relative to the corpus, not absolute"  # POSIX, Windows drive, or UNC path
     if "\\" in value:
         return "use forward slashes"
-    pure = PurePosixPath(value)
-    if pure.is_absolute():
-        return "must be relative to the corpus, not absolute"
     if ".." in pure.parts:
         return "must stay inside the corpus (no '..')"
     if pure.as_posix() != value:

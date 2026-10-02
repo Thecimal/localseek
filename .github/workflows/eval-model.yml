@@ -1,0 +1,46 @@
+name: Model evaluation
+
+# Runs the benchmark with the real embedding model and checks it against thresholds derived from a recorded baseline.
+# Manual for now: it downloads the model (about 70 MB). Once the thresholds file below is committed and a second
+# environment has confirmed it, add a weekly schedule (for example `schedule: [{cron: "0 6 * * 1"}]`) so drift in
+# the model runtime is noticed.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Embedding model
+        default: BAAI/bge-small-en-v1.5
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.fastembed-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: .fastembed-cache
+          key: fastembed-${{ inputs.model }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Check thresholds exist
+        run: |
+          test -f eval/benchmark/thresholds-bge-small-en-v1.5.json || {
+            echo "Missing eval/benchmark/thresholds-bge-small-en-v1.5.json. Derive it from the committed baseline:"
+            echo "  python eval/derive_thresholds.py --baseline eval/benchmark/baselines/bge-small-en-v1.5.json --queries eval/benchmark/queries.json --out eval/benchmark/thresholds-bge-small-en-v1.5.json"
+            exit 1
+          }
+      - name: Evaluate
+        run: python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json --model "${{ inputs.model }}" --thresholds eval/benchmark/thresholds-bge-small-en-v1.5.json --by-category --show-misses --json run.json
+      - name: Keep the run record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-run
+          path: run.json

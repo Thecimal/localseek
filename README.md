@@ -131,19 +131,30 @@ result, and `--json FILE` saves the whole run (configuration and all metrics) in
 
 ### Quality gate
 
-By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops:
+By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops. The repository ships
+a gate for the benchmark that CI runs on every pull request:
 
 ```bash
-python eval/run_eval.py --corpus examples/corpus --queries eval/queries.json --model hash --thresholds my-thresholds.json
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json \
+    --model hash --thresholds eval/benchmark/thresholds-hash.json --by-category
 ```
+
+A thresholds file sets minimum values, overall per mode and optionally per query category:
 
 ```json
-{"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
+{
+  "hybrid": {"recall@1": 0.8, "mrr": 0.85},
+  "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
+  "meta": {"dataset_sha256": "...", "corpus_sha256": "..."}
+}
 ```
 
-The numbers above only illustrate the format; the repository does not ship thresholds yet. Valid metrics are
-`recall@1`, `recall@5`, `recall@10`, and `mrr`; valid modes are `hybrid`, `vector`, and `keyword`. Unlisted modes and
-metrics are reported but not checked, and unknown names are rejected so a typo cannot silently disable a check.
+Valid metrics are `recall@1`, `recall@5`, `recall@10`, and `mrr`; valid modes are `hybrid`, `vector`, and `keyword`.
+Anything not listed is reported but not checked. Unknown modes, metrics and categories are rejected, so a typo cannot
+silently disable a check. Category floors catch a collapse in one kind of query that an overall average would hide.
+`meta` records which version of the benchmark the floors were derived from, and the run refuses to gate a different
+version; `eval/derive_thresholds.py` builds a file from a recorded baseline by a fixed rule (see
+`eval/benchmark/README.md`).
 
 | Exit status | Meaning |
 |---|---|

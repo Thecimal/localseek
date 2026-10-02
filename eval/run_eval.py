@@ -17,10 +17,15 @@ mode, every query whose first relevant document is not the top result.
 
 Quality gate: pass `--thresholds FILE` to fail when a metric falls below its required minimum.
 
-    {"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
+    {"hybrid": {"recall@1": 0.8, "mrr": 0.85},
+     "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
+     "meta": {"dataset_sha256": "...", "corpus_sha256": "..."}}
 
-Metrics are recall@1, recall@5, recall@10, and mrr; modes are hybrid, vector, and keyword. Anything not listed
-is reported but not checked. Without `--thresholds` the script only reports.
+Top-level modes set overall minimums; `by_category` sets minimums per query category; `meta` records which version
+of the benchmark the numbers were derived from, and the run refuses to gate a different version. Metrics are
+recall@1, recall@5, recall@10, and mrr; modes are hybrid, vector, and keyword. Anything not listed is reported but
+not checked. Without `--thresholds` the script only reports. `eval/derive_thresholds.py` builds a thresholds file
+from a recorded baseline run.
 
 Exit status: 0 success (and every threshold met), 1 a threshold was not met, 2 invalid corpus, dataset, or
 thresholds.
@@ -39,8 +44,8 @@ from retrieval_eval import (
     KS,
     DatasetError,
     ThresholdError,
+    check_gate,
     check_indexed,
-    check_thresholds,
     count_checks,
     environment_info,
     evaluate,
@@ -50,6 +55,7 @@ from retrieval_eval import (
     load_dataset,
     load_thresholds,
     misses,
+    provenance_problems,
     result_record,
     trace_queries,
 )
@@ -129,7 +135,9 @@ def main() -> int:
     thresholds = None
     if args.thresholds:
         try:
-            thresholds = load_thresholds(args.thresholds, MODES, KS)
+            thresholds = load_thresholds(
+                args.thresholds, MODES, KS, categories={q.category for q in queries if q.category}
+            )
         except ThresholdError as exc:
             return _fail(f"invalid thresholds ({args.thresholds})", exc.problems)
 
@@ -137,8 +145,13 @@ def main() -> int:
     settings = Settings(model=args.model)
     info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
     print("\n".join(format_environment(info)) + "\n")
+    if thresholds is not None:
+        stale = provenance_problems(thresholds.meta, info)
+        if stale:
+            return _fail(f"thresholds do not match this benchmark ({args.thresholds})", stale)
 
     record: dict = {"environment": info}
+    per_mode = None
     with tempfile.TemporaryDirectory() as tmp:
         store = Store(Path(tmp) / "eval.db")
         try:
@@ -160,7 +173,7 @@ def main() -> int:
                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
             record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
             record["results"] = {mode: result_record(r) for mode, r in results.items()}
-            if args.by_category or args.json:
+            if args.by_category or args.json or (thresholds is not None and thresholds.by_category):
                 per_mode = _by_category(searcher, queries, root)
                 record["by_category"] = {
                     mode: {name: result_record(r) for name, r in groups.items()} for mode, groups in per_mode.items()
@@ -176,7 +189,7 @@ def main() -> int:
         finally:
             store.close()
 
-    failures = check_thresholds(results, thresholds) if thresholds is not None else []
+    failures = check_gate(results, per_mode, thresholds) if thresholds is not None else []
     if thresholds is not None:
         record["gate"] = {"checks": count_checks(thresholds), "failures": [str(f) for f in failures]}
     if args.json:

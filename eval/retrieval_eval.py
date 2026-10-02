@@ -214,12 +214,22 @@ def evaluate_by_category(
 # Slack for floating-point noise only (0.8 computed as 4/5 must satisfy a 0.8 threshold).
 _EPSILON = 1e-9
 
-# mode -> metric -> minimum required value
-Thresholds = dict[str, dict[str, float]]
-
-
 class ThresholdError(DatasetError):
     """The thresholds file is unusable."""
+
+
+@dataclass(frozen=True)
+class Thresholds:
+    """Minimum metrics: `overall` is {mode: {metric: min}}; `by_category` is {mode: {category: {metric: min}}}."""
+
+    overall: dict[str, dict[str, float]]
+    by_category: dict[str, dict[str, dict[str, float]]]
+    meta: dict
+
+    @property
+    def checks(self) -> int:
+        categories = sum(len(m) for cats in self.by_category.values() for m in cats.values())
+        return sum(len(m) for m in self.overall.values()) + categories
 
 
 @dataclass(frozen=True)
@@ -228,9 +238,11 @@ class Failure:
     metric: str
     actual: float
     required: float
+    category: str | None = None
 
     def __str__(self) -> str:
-        return f"{self.mode} {self.metric}: {self.actual:.3f} < required {self.required:.3f}"
+        scope = f"{self.mode} {self.category}" if self.category else self.mode
+        return f"{scope} {self.metric}: {self.actual:.3f} < required {self.required:.3f}"
 
 
 def metric_names(ks: Sequence[int] = KS) -> list[str]:
@@ -243,11 +255,35 @@ def metric_values(result: ModeResult) -> dict[str, float]:
     return values
 
 
-def load_thresholds(path: str | Path, modes: Sequence[str], ks: Sequence[int] = KS) -> Thresholds:
-    """Read minimum required metrics, as {mode: {metric: minimum}}.
+def _parse_metrics(label: str, wanted: object, valid_metrics: Sequence[str], problems: list[str]) -> dict[str, float]:
+    parsed: dict[str, float] = {}
+    if not isinstance(wanted, dict) or not wanted:
+        problems.append(f"{label}: must be a non-empty object mapping metric names to minimum values")
+        return parsed
+    for metric, value in wanted.items():
+        if metric not in valid_metrics:
+            problems.append(f"{label}: unknown metric {metric!r} (expected one of: {', '.join(valid_metrics)})")
+        elif isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+            problems.append(f"{label} {metric}: threshold must be a number, got {value!r}")
+        elif not 0 <= value <= 1:
+            problems.append(f"{label} {metric}: threshold must be between 0 and 1, got {value!r}")
+        else:
+            parsed[metric] = float(value)
+    return parsed
 
-    Example: {"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
-    Modes and metrics that are not listed are not checked. Raises ThresholdError listing every problem.
+
+def load_thresholds(
+    path: str | Path, modes: Sequence[str], ks: Sequence[int] = KS, categories: Iterable[str] | None = None
+) -> Thresholds:
+    """Read minimum required metrics.
+
+        {"hybrid": {"recall@1": 0.8, "mrr": 0.85},
+         "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
+         "meta": {"dataset_sha256": "..."}}
+
+    Top-level modes give overall minimums; "by_category" gives per-category minimums for categories that exist in
+    the dataset; "meta" is free-form provenance (its fingerprints are checked against the run). Anything not listed
+    is not checked. Raises ThresholdError listing every problem.
     """
     try:
         raw = Path(path).read_text(encoding="utf-8")
@@ -259,36 +295,51 @@ def load_thresholds(path: str | Path, modes: Sequence[str], ks: Sequence[int] = 
         raise ThresholdError([f"not valid JSON: {exc.msg} (line {exc.lineno}, column {exc.colno})"]) from exc
     if not isinstance(data, dict):
         raise ThresholdError(['the top level must be an object like {"hybrid": {"recall@1": 0.8}}'])
-    if not data:
-        raise ThresholdError(["no thresholds defined; a gate that checks nothing is not allowed"])
 
+    known_categories = set(categories or ())
     valid_metrics = metric_names(ks)
     problems: list[str] = []
-    result: Thresholds = {}
-    for mode, wanted in data.items():
-        if mode not in modes:
-            problems.append(f"unknown mode {mode!r} (expected one of: {', '.join(modes)})")
-            continue
-        if not isinstance(wanted, dict) or not wanted:
-            problems.append(f"{mode}: must be a non-empty object mapping metric names to minimum values")
-            continue
-        result[mode] = {}
-        for metric, value in wanted.items():
-            if metric not in valid_metrics:
-                problems.append(f"{mode}: unknown metric {metric!r} (expected one of: {', '.join(valid_metrics)})")
-            elif isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
-                problems.append(f"{mode} {metric}: threshold must be a number, got {value!r}")
-            elif not 0 <= value <= 1:
-                problems.append(f"{mode} {metric}: threshold must be between 0 and 1, got {value!r}")
+    overall: dict[str, dict[str, float]] = {}
+    by_category: dict[str, dict[str, dict[str, float]]] = {}
+    meta: dict = {}
+    for key, wanted in data.items():
+        if key == "meta":
+            if isinstance(wanted, dict):
+                meta = wanted
             else:
-                result[mode][metric] = float(value)
+                problems.append("meta: must be an object")
+        elif key == "by_category":
+            if not isinstance(wanted, dict) or not wanted:
+                problems.append("by_category: must be a non-empty object mapping modes to categories")
+                continue
+            for mode, cats in wanted.items():
+                if mode not in modes:
+                    problems.append(f"by_category: unknown mode {mode!r} (expected one of: {', '.join(modes)})")
+                elif not isinstance(cats, dict) or not cats:
+                    problems.append(f"by_category {mode}: must be a non-empty object mapping categories to metrics")
+                else:
+                    by_category[mode] = {}
+                    for category, metrics in cats.items():
+                        if category not in known_categories:
+                            known = ", ".join(sorted(known_categories)) or "none: the dataset has no categories"
+                            problems.append(f"by_category {mode}: unknown category {category!r} (dataset has: {known})")
+                            continue
+                        by_category[mode][category] = _parse_metrics(
+                            f"{mode} {category}", metrics, valid_metrics, problems
+                        )
+        elif key not in modes:
+            problems.append(f"unknown mode {key!r} (expected one of: {', '.join(modes)}, by_category, meta)")
+        else:
+            overall[key] = _parse_metrics(key, wanted, valid_metrics, problems)
+    if not problems and not overall and not by_category:
+        problems.append("no thresholds defined; a gate that checks nothing is not allowed")
     if problems:
         raise ThresholdError(problems)
-    return result
+    return Thresholds(overall, by_category, meta)
 
 
-def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) -> list[Failure]:
-    """Every threshold the results fail to meet, ordered by mode then metric as listed in the file."""
+def check_thresholds(results: dict[str, ModeResult], thresholds: dict[str, dict[str, float]]) -> list[Failure]:
+    """Every overall threshold the results fail to meet, ordered by mode then metric as listed in the file."""
     failures: list[Failure] = []
     for mode, wanted in thresholds.items():
         if mode not in results:
@@ -300,8 +351,53 @@ def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) -> 
     return failures
 
 
+def check_category_thresholds(
+    results: dict[str, dict[str, ModeResult]], thresholds: dict[str, dict[str, dict[str, float]]]
+) -> list[Failure]:
+    """Every per-category threshold the results fail to meet."""
+    failures: list[Failure] = []
+    for mode, categories in thresholds.items():
+        for category, wanted in categories.items():
+            if category not in results.get(mode, {}):
+                raise ValueError(f"thresholds reference {mode}/{category}, which was not evaluated")
+            actual = metric_values(results[mode][category])
+            for metric, required in wanted.items():
+                if actual[metric] < required - _EPSILON:
+                    failures.append(Failure(mode, metric, actual[metric], required, category))
+    return failures
+
+
+def check_gate(
+    results: dict[str, ModeResult],
+    category_results: dict[str, dict[str, ModeResult]] | None,
+    thresholds: Thresholds,
+) -> list[Failure]:
+    failures = check_thresholds(results, thresholds.overall)
+    if thresholds.by_category:
+        if category_results is None:
+            raise ValueError("category thresholds need per-category results")
+        failures += check_category_thresholds(category_results, thresholds.by_category)
+    return failures
+
+
 def count_checks(thresholds: Thresholds) -> int:
-    return sum(len(wanted) for wanted in thresholds.values())
+    return thresholds.checks
+
+
+def provenance_problems(meta: dict, info: dict) -> list[str]:
+    """Thresholds derived for one version of the benchmark must not gate another."""
+    problems = []
+    for key, actual, label in (
+        ("dataset_sha256", info["dataset"]["sha256"], "query file"),
+        ("corpus_sha256", info["corpus"]["sha256"], "corpus"),
+    ):
+        expected = meta.get(key)
+        if expected is not None and expected != actual:
+            problems.append(
+                f"thresholds were derived for a {label} with sha256 {str(expected)[:12]}, but this run uses "
+                f"{actual[:12]}; re-derive them with eval/derive_thresholds.py"
+            )
+    return problems
 
 
 # -- reporting: misses and run record --------------------------------------------------------

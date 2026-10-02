@@ -1,0 +1,316 @@
+{
+  "environment": {
+    "model": "hash",
+    "chunk_words": 220,
+    "overlap_words": 30,
+    "dataset": {
+      "path": "eval/benchmark/queries.json",
+      "queries": 97,
+      "sha256": "8a99ed3d727d1a845925408a9384cc6661f1324ce8ff528dea41a172dc725362"
+    },
+    "corpus": {
+      "path": "eval/benchmark/corpus",
+      "files": 62,
+      "sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6"
+    },
+    "versions": {
+      "python": "3.12.3",
+      "localseek": "0.1.0",
+      "fastembed": "not installed",
+      "numpy": "2.4.4"
+    },
+    "platform": "Linux-6.18.44-fc-v50-x86_64-with-glibc2.39"
+  },
+  "indexed": {
+    "files": 62,
+    "chunks": 80
+  },
+  "results": {
+    "hybrid": {
+      "recall@1": 0.6262886597938144,
+      "recall@5": 0.8359106529209621,
+      "recall@10": 0.8848797250859106,
+      "mrr": 0.7875715922107674,
+      "latency_ms": 1.7165955670103572
+    },
+    "vector": {
+      "recall@1": 0.3848797250859107,
+      "recall@5": 0.6572164948453608,
+      "recall@10": 0.7525773195876289,
+      "mrr": 0.554217803960072,
+      "latency_ms": 0.9172157938144092
+    },
+    "keyword": {
+      "recall@1": 0.6958762886597938,
+      "recall@5": 0.929553264604811,
+      "recall@10": 0.9690721649484536,
+      "mrr": 0.8581042382588775,
+      "latency_ms": 1.0602141237113427
+    }
+  },
+  "by_category": {
+    "hybrid": {
+      "exact_keyword": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 1.0637750000000779
+      },
+      "technical_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 1.1248518181797738
+      },
+      "rare_term": {
+        "recall@1": 0.875,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9375,
+        "latency_ms": 1.1229182500009927
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.16666666666666666,
+        "recall@5": 0.4166666666666667,
+        "recall@10": 0.5,
+        "mrr": 0.25972222222222224,
+        "latency_ms": 1.7898170833324418
+      },
+      "multi_document": {
+        "recall@1": 0.3645833333333333,
+        "recall@5": 0.59375,
+        "recall@10": 0.8125,
+        "mrr": 0.9375,
+        "latency_ms": 1.6482338749987946
+      },
+      "ambiguous": {
+        "recall@1": 0.38888888888888884,
+        "recall@5": 0.9166666666666666,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 1.0452848333339186
+      },
+      "long_question": {
+        "recall@1": 0.625,
+        "recall@5": 0.6875,
+        "recall@10": 0.8125,
+        "mrr": 0.6701388888888888,
+        "latency_ms": 2.662925750001932
+      },
+      "redundant_answer": {
+        "recall@1": 0.25,
+        "recall@5": 0.7222222222222222,
+        "recall@10": 0.8055555555555555,
+        "mrr": 0.6555555555555556,
+        "latency_ms": 1.5521199999994906
+      },
+      "near_duplicate": {
+        "recall@1": 0.6666666666666666,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.7916666666666666,
+        "latency_ms": 1.4964543333348956
+      },
+      "shared_filename": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 1.2809173749985803
+      },
+      "late_answer": {
+        "recall@1": 0.4444444444444444,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.6370370370370371,
+        "latency_ms": 1.562110222222499
+      },
+      "similar_subject": {
+        "recall@1": 0.6,
+        "recall@5": 0.8,
+        "recall@10": 0.8,
+        "mrr": 0.7,
+        "latency_ms": 1.5638191999983064
+      }
+    },
+    "vector": {
+      "exact_keyword": {
+        "recall@1": 0.6,
+        "recall@5": 0.9,
+        "recall@10": 0.9,
+        "mrr": 0.7333333333333333,
+        "latency_ms": 0.8578967999994802
+      },
+      "technical_term": {
+        "recall@1": 0.8181818181818182,
+        "recall@5": 0.9090909090909091,
+        "recall@10": 0.9090909090909091,
+        "mrr": 0.8636363636363636,
+        "latency_ms": 0.8217982727258418
+      },
+      "rare_term": {
+        "recall@1": 0.5,
+        "recall@5": 0.875,
+        "recall@10": 0.875,
+        "mrr": 0.65625,
+        "latency_ms": 0.7358367499996632
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.08333333333333333,
+        "recall@5": 0.25,
+        "recall@10": 0.3333333333333333,
+        "mrr": 0.1300925925925926,
+        "latency_ms": 0.8316723333336995
+      },
+      "multi_document": {
+        "recall@1": 0.125,
+        "recall@5": 0.44791666666666663,
+        "recall@10": 0.5625,
+        "mrr": 0.4895833333333333,
+        "latency_ms": 0.8024316250008212
+      },
+      "ambiguous": {
+        "recall@1": 0.3055555555555555,
+        "recall@5": 0.8611111111111112,
+        "recall@10": 0.8611111111111112,
+        "mrr": 0.875,
+        "latency_ms": 0.7486145000020391
+      },
+      "long_question": {
+        "recall@1": 0.25,
+        "recall@5": 0.375,
+        "recall@10": 0.625,
+        "mrr": 0.32514880952380953,
+        "latency_ms": 0.9504490000011856
+      },
+      "redundant_answer": {
+        "recall@1": 0.08333333333333333,
+        "recall@5": 0.5,
+        "recall@10": 0.7222222222222222,
+        "mrr": 0.37797619047619047,
+        "latency_ms": 0.9326966666662884
+      },
+      "near_duplicate": {
+        "recall@1": 0.3333333333333333,
+        "recall@5": 0.6666666666666666,
+        "recall@10": 0.8333333333333334,
+        "mrr": 0.4777777777777778,
+        "latency_ms": 0.8701766666708485
+      },
+      "shared_filename": {
+        "recall@1": 0.625,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.8125,
+        "latency_ms": 0.9066393749996848
+      },
+      "late_answer": {
+        "recall@1": 0.2222222222222222,
+        "recall@5": 0.5555555555555556,
+        "recall@10": 0.7777777777777778,
+        "mrr": 0.39858906525573196,
+        "latency_ms": 0.9892924444443452
+      },
+      "similar_subject": {
+        "recall@1": 0.6,
+        "recall@5": 0.6,
+        "recall@10": 0.8,
+        "mrr": 0.625,
+        "latency_ms": 0.9055926000030468
+      }
+    },
+    "keyword": {
+      "exact_keyword": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.24316650000173468
+      },
+      "technical_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.3837363636359276
+      },
+      "rare_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.2309976249996737
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.16666666666666666,
+        "recall@5": 0.5,
+        "recall@10": 0.75,
+        "mrr": 0.31828703703703703,
+        "latency_ms": 1.566791666668621
+      },
+      "multi_document": {
+        "recall@1": 0.2708333333333333,
+        "recall@5": 0.9375,
+        "recall@10": 1.0,
+        "mrr": 0.8541666666666666,
+        "latency_ms": 1.245694750000581
+      },
+      "ambiguous": {
+        "recall@1": 0.38888888888888884,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.43447916666631653
+      },
+      "long_question": {
+        "recall@1": 0.6875,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.84375,
+        "latency_ms": 2.375385249997919
+      },
+      "redundant_answer": {
+        "recall@1": 0.4166666666666667,
+        "recall@5": 0.9444444444444445,
+        "recall@10": 1.0,
+        "mrr": 0.875,
+        "latency_ms": 1.0180545000035106
+      },
+      "near_duplicate": {
+        "recall@1": 0.8333333333333334,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9166666666666666,
+        "latency_ms": 1.1033461666679993
+      },
+      "shared_filename": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.9198845000000233
+      },
+      "late_answer": {
+        "recall@1": 0.7777777777777778,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.8425925925925926,
+        "latency_ms": 1.4721793333352353
+      },
+      "similar_subject": {
+        "recall@1": 0.8,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9,
+        "latency_ms": 1.2112844000000678
+      }
+    }
+  },
+  "misses": {
+    "hybrid": 27,
+    "vector": 55,
+    "keyword": 19
+  }
+}

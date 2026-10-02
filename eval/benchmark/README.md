@@ -78,6 +78,34 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
 it reached and what ranked first. `--json` writes the same configuration plus every metric (overall, per category)
 for archiving or diffing; it records the corpus path as given on the command line, not an absolute path.
 
+## Quality gate and thresholds
+
+`thresholds-hash.json` is the gate CI runs on every pull request (Linux, macOS and Windows). It uses the hash
+embedder, so it protects the keyword search, the fusion and the indexing from regressions, but it says nothing about
+semantic quality. The semantic check is the manual "Model evaluation" workflow, which needs a thresholds file derived
+from a real-model baseline:
+
+```bash
+python eval/derive_thresholds.py --baseline eval/benchmark/baselines/bge-small-en-v1.5.json \
+    --queries eval/benchmark/queries.json --out eval/benchmark/thresholds-bge-small-en-v1.5.json
+```
+
+Thresholds are **derived by a fixed rule from a recorded baseline**, not chosen by hand:
+
+* Overall, per mode: `recall@1`, `recall@5` and `mrr` must stay above the baseline minus 0.02 (about two queries).
+* Per category, per mode: `recall@5` and `mrr` must stay above the baseline minus 1/n, one query's worth for that
+  category. `recall@1` is not gated per category, because categories with several relevant documents cannot reach 1.0.
+* Floors are rounded down to two decimals; a floor of zero checks nothing and is dropped.
+
+They are **regression floors, not quality goals**: they lock in what the baseline achieved, weak spots included, so
+improving search never fails the gate but making it worse does. The file records the fingerprints of the benchmark it
+was derived from, and a run against a different corpus or query file is refused until the thresholds are re-derived.
+Changing the benchmark therefore means: record a new baseline with `--json`, derive the thresholds, commit both.
+
+The hash gate was checked against a deliberately broken ranking (keyword results returned in reverse order): the clean
+run passes all its checks and the broken one fails with every affected row listed, while the untouched vector mode is
+correctly not reported.
+
 ## Rules for changing it
 
 1. Write documents and queries **before** looking at any retrieval results.

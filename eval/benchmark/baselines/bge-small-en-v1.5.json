@@ -1,0 +1,697 @@
+{
+  "environment": {
+    "model": "BAAI/bge-small-en-v1.5",
+    "chunk_words": 220,
+    "overlap_words": 30,
+    "dataset": {
+      "path": "eval/benchmark/queries.json",
+      "queries": 97,
+      "sha256": "8a99ed3d727d1a845925408a9384cc6661f1324ce8ff528dea41a172dc725362"
+    },
+    "corpus": {
+      "path": "eval/benchmark/corpus",
+      "files": 62,
+      "sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6"
+    },
+    "versions": {
+      "python": "3.14.4",
+      "localseek": "0.1.0",
+      "fastembed": "0.8.1",
+      "numpy": "2.5.3"
+    },
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43"
+  },
+  "indexed": {
+    "files": 62,
+    "chunks": 80
+  },
+  "results": {
+    "hybrid": {
+      "recall@1": 0.7663230240549828,
+      "recall@5": 0.9690721649484536,
+      "recall@10": 0.9896907216494846,
+      "mrr": 0.9287350679103256,
+      "latency_ms": 12.787138525775084
+    },
+    "vector": {
+      "recall@1": 0.7783505154639175,
+      "recall@5": 0.9639175257731959,
+      "recall@10": 0.9810996563573884,
+      "mrr": 0.9262150220913108,
+      "latency_ms": 11.818151711343761
+    },
+    "keyword": {
+      "recall@1": 0.6958762886597938,
+      "recall@5": 0.929553264604811,
+      "recall@10": 0.9690721649484536,
+      "mrr": 0.8581042382588775,
+      "latency_ms": 1.8548504948430304
+    }
+  },
+  "by_category": {
+    "hybrid": {
+      "exact_keyword": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 8.80021390003094
+      },
+      "technical_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 9.370812909103487
+      },
+      "rare_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 8.434780125071484
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.5,
+        "recall@5": 0.75,
+        "recall@10": 0.9166666666666666,
+        "mrr": 0.6322751322751322,
+        "latency_ms": 11.98066524996951
+      },
+      "multi_document": {
+        "recall@1": 0.3333333333333333,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9375,
+        "latency_ms": 11.014633624881753
+      },
+      "ambiguous": {
+        "recall@1": 0.38888888888888884,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 8.555003166596483
+      },
+      "long_question": {
+        "recall@1": 0.8125,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9375,
+        "latency_ms": 19.785090875075184
+      },
+      "redundant_answer": {
+        "recall@1": 0.47222222222222227,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 10.113027166880784
+      },
+      "near_duplicate": {
+        "recall@1": 0.8333333333333334,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9166666666666666,
+        "latency_ms": 10.236246333382345
+      },
+      "shared_filename": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 9.97180187482627
+      },
+      "late_answer": {
+        "recall@1": 0.8888888888888888,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9444444444444444,
+        "latency_ms": 11.202307111185897
+      },
+      "similar_subject": {
+        "recall@1": 0.8,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9,
+        "latency_ms": 12.58888360025594
+      }
+    },
+    "vector": {
+      "exact_keyword": {
+        "recall@1": 0.9,
+        "recall@5": 0.9,
+        "recall@10": 0.9,
+        "mrr": 0.9,
+        "latency_ms": 9.775610399992729
+      },
+      "technical_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 9.469945636241889
+      },
+      "rare_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 8.517235374938537
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.75,
+        "recall@5": 0.9166666666666666,
+        "recall@10": 1.0,
+        "mrr": 0.8313492063492064,
+        "latency_ms": 11.147905833392239
+      },
+      "multi_document": {
+        "recall@1": 0.3333333333333333,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9375,
+        "latency_ms": 9.596631500016883
+      },
+      "ambiguous": {
+        "recall@1": 0.25,
+        "recall@5": 0.75,
+        "recall@10": 0.8611111111111112,
+        "mrr": 0.7833333333333333,
+        "latency_ms": 8.533380000092924
+      },
+      "long_question": {
+        "recall@1": 0.8125,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9375,
+        "latency_ms": 18.556007624965787
+      },
+      "redundant_answer": {
+        "recall@1": 0.47222222222222227,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 9.325689500049824
+      },
+      "near_duplicate": {
+        "recall@1": 0.5,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.6944444444444445,
+        "latency_ms": 9.454029333331468
+      },
+      "shared_filename": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 9.555656124803136
+      },
+      "late_answer": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 10.628588000044045
+      },
+      "similar_subject": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 10.050713599775918
+      }
+    },
+    "keyword": {
+      "exact_keyword": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.47505740003543906
+      },
+      "technical_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.6559240001396658
+      },
+      "rare_term": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.43674312519215164
+      },
+      "semantic_paraphrase": {
+        "recall@1": 0.16666666666666666,
+        "recall@5": 0.5,
+        "recall@10": 0.75,
+        "mrr": 0.31828703703703703,
+        "latency_ms": 2.3310275832955085
+      },
+      "multi_document": {
+        "recall@1": 0.2708333333333333,
+        "recall@5": 0.9375,
+        "recall@10": 1.0,
+        "mrr": 0.8541666666666666,
+        "latency_ms": 2.2354833749886893
+      },
+      "ambiguous": {
+        "recall@1": 0.38888888888888884,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.838828499884888
+      },
+      "long_question": {
+        "recall@1": 0.6875,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.84375,
+        "latency_ms": 4.711039875019196
+      },
+      "redundant_answer": {
+        "recall@1": 0.4166666666666667,
+        "recall@5": 0.9444444444444445,
+        "recall@10": 1.0,
+        "mrr": 0.875,
+        "latency_ms": 1.560823833339479
+      },
+      "near_duplicate": {
+        "recall@1": 0.8333333333333334,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9166666666666666,
+        "latency_ms": 1.1774501666271437
+      },
+      "shared_filename": {
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 1.0,
+        "latency_ms": 0.7788103750954178
+      },
+      "late_answer": {
+        "recall@1": 0.7777777777777778,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.8425925925925926,
+        "latency_ms": 1.7388043332984024
+      },
+      "similar_subject": {
+        "recall@1": 0.8,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.9,
+        "latency_ms": 1.700721999804955
+      }
+    }
+  },
+  "misses": {
+    "hybrid": [
+      {
+        "query": "how often should I replenish the fermented dough mixture I keep for making loaves",
+        "category": "semantic_paraphrase",
+        "first_rank": 3,
+        "top_hit": "kitchen/pizza-dough.md",
+        "relevant": [
+          "kitchen/notes.md"
+        ]
+      },
+      {
+        "query": "how do I quiet a noisy two-wheeler transmission",
+        "category": "semantic_paraphrase",
+        "first_rank": null,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "hobbies/bike-maintenance.md"
+        ]
+      },
+      {
+        "query": "what happens if I want to move out early",
+        "category": "semantic_paraphrase",
+        "first_rank": 2,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "housing/lease-agreement.md"
+        ]
+      },
+      {
+        "query": "how much money do I put away every month",
+        "category": "semantic_paraphrase",
+        "first_rank": 2,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "finance/budget-2026.md"
+        ]
+      },
+      {
+        "query": "what does a new colleague have to do during their first days",
+        "category": "semantic_paraphrase",
+        "first_rank": 9,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "how do I make a new routine stick",
+        "category": "semantic_paraphrase",
+        "first_rank": 7,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "hobbies/book-notes.md"
+        ]
+      },
+      {
+        "query": "my freelance income and spending for 2025",
+        "category": "multi_document",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md",
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "Somewhere I wrote down how much of my freelance earnings I could deduct for working from my spare room for the 2025 tax year, and I need the exact figure for my tax return.",
+        "category": "long_question",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "what was my home office deduction for the 2025 tax year",
+        "category": "near_duplicate",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "pet deposit in the original lease agreement",
+        "category": "late_answer",
+        "first_rank": 2,
+        "top_hit": "housing/addendum-2025.md",
+        "relevant": [
+          "housing/lease-agreement.md"
+        ]
+      },
+      {
+        "query": "which plan is for the 10K race",
+        "category": "similar_subject",
+        "first_rank": 2,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "health/running-plan.md"
+        ]
+      }
+    ],
+    "vector": [
+      {
+        "query": "next_cursor",
+        "category": "exact_keyword",
+        "first_rank": null,
+        "top_hit": "travel/flight-confirmation.pdf",
+        "relevant": [
+          "work/api/README.md"
+        ]
+      },
+      {
+        "query": "the agreement where the property owner promised to get the warmth working again",
+        "category": "semantic_paraphrase",
+        "first_rank": 3,
+        "top_hit": "housing/lease-agreement.md",
+        "relevant": [
+          "housing/notes.md"
+        ]
+      },
+      {
+        "query": "what does a new colleague have to do during their first days",
+        "category": "semantic_paraphrase",
+        "first_rank": 2,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "how do I make a new routine stick",
+        "category": "semantic_paraphrase",
+        "first_rank": 7,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "hobbies/book-notes.md"
+        ]
+      },
+      {
+        "query": "my freelance income and spending for 2025",
+        "category": "multi_document",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md",
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "key",
+        "category": "ambiguous",
+        "first_rank": 5,
+        "top_hit": "hobbies/guitar-chords.txt",
+        "relevant": [
+          "work/api/README.md",
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "migration",
+        "category": "ambiguous",
+        "first_rank": 2,
+        "top_hit": "travel/flight-confirmation.pdf",
+        "relevant": [
+          "work/q3/meeting-notes.md",
+          "tech/migration/checklist.md",
+          "work/project-proposal.md"
+        ]
+      },
+      {
+        "query": "Somewhere I wrote down how much of my freelance earnings I could deduct for working from my spare room for the 2025 tax year, and I need the exact figure for my tax return.",
+        "category": "long_question",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "what was my home office deduction for the 2025 tax year",
+        "category": "near_duplicate",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "rent increase effective January 2026",
+        "category": "near_duplicate",
+        "first_rank": 3,
+        "top_hit": "housing/lease-agreement.md",
+        "relevant": [
+          "housing/addendum-2026.md"
+        ]
+      },
+      {
+        "query": "pet deposit in the 2025 addendum",
+        "category": "near_duplicate",
+        "first_rank": 3,
+        "top_hit": "finance/pension-statement.pdf",
+        "relevant": [
+          "housing/addendum-2025.md"
+        ]
+      }
+    ],
+    "keyword": [
+      {
+        "query": "how often should I replenish the fermented dough mixture I keep for making loaves",
+        "category": "semantic_paraphrase",
+        "first_rank": 9,
+        "top_hit": "kitchen/pizza-dough.md",
+        "relevant": [
+          "kitchen/notes.md"
+        ]
+      },
+      {
+        "query": "the agreement where the property owner promised to get the warmth working again",
+        "category": "semantic_paraphrase",
+        "first_rank": 3,
+        "top_hit": "work/q3/meeting-notes.md",
+        "relevant": [
+          "housing/notes.md"
+        ]
+      },
+      {
+        "query": "what do I have to do every day for my sore kneecap",
+        "category": "semantic_paraphrase",
+        "first_rank": 2,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "health/notes.md"
+        ]
+      },
+      {
+        "query": "how do I stop website visitors seeing a scary expired security warning",
+        "category": "semantic_paraphrase",
+        "first_rank": 4,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "tech/ssl-errors.md"
+        ]
+      },
+      {
+        "query": "how do I quiet a noisy two-wheeler transmission",
+        "category": "semantic_paraphrase",
+        "first_rank": null,
+        "top_hit": "health/doctor-email.txt",
+        "relevant": [
+          "hobbies/bike-maintenance.md"
+        ]
+      },
+      {
+        "query": "what happens if I want to move out early",
+        "category": "semantic_paraphrase",
+        "first_rank": 3,
+        "top_hit": "health/doctor-email.txt",
+        "relevant": [
+          "housing/lease-agreement.md"
+        ]
+      },
+      {
+        "query": "how much money do I put away every month",
+        "category": "semantic_paraphrase",
+        "first_rank": 6,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "finance/budget-2026.md"
+        ]
+      },
+      {
+        "query": "what does a new colleague have to do during their first days",
+        "category": "semantic_paraphrase",
+        "first_rank": null,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "how can I reduce what I owe if the hire car gets dinged",
+        "category": "semantic_paraphrase",
+        "first_rank": 8,
+        "top_hit": "health/doctor-email.txt",
+        "relevant": [
+          "travel/car-rental.txt"
+        ]
+      },
+      {
+        "query": "how do I make a new routine stick",
+        "category": "semantic_paraphrase",
+        "first_rank": null,
+        "top_hit": "tech/migration/checklist.md",
+        "relevant": [
+          "hobbies/book-notes.md"
+        ]
+      },
+      {
+        "query": "how is my data backed up",
+        "category": "multi_document",
+        "first_rank": 3,
+        "top_hit": "work/project-proposal.md",
+        "relevant": [
+          "tech/backup-policy.md",
+          "tech/homeserver/README.md"
+        ]
+      },
+      {
+        "query": "my freelance income and spending for 2025",
+        "category": "multi_document",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md",
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "Somewhere I wrote down how much of my freelance earnings I could deduct for working from my spare room for the 2025 tax year, and I need the exact figure for my tax return.",
+        "category": "long_question",
+        "first_rank": 2,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "When the website certificate expires and browsers start showing a warning that the connection is not private, what exact steps did I write down for renewing it automatically?",
+        "category": "long_question",
+        "first_rank": 4,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "tech/ssl-errors.md"
+        ]
+      },
+      {
+        "query": "who is my landlord and how do I contact him",
+        "category": "redundant_answer",
+        "first_rank": 4,
+        "top_hit": "tech/runbook-deploy.md",
+        "relevant": [
+          "housing/lease-agreement.md",
+          "housing/notes.md",
+          "housing/landlord-email.txt"
+        ]
+      },
+      {
+        "query": "what was my home office deduction for the 2025 tax year",
+        "category": "near_duplicate",
+        "first_rank": 2,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "finance/tax-notes-2025.md"
+        ]
+      },
+      {
+        "query": "pet deposit in the original lease agreement",
+        "category": "late_answer",
+        "first_rank": 3,
+        "top_hit": "housing/addendum-2025.md",
+        "relevant": [
+          "housing/lease-agreement.md"
+        ]
+      },
+      {
+        "query": "what is the cut-off time for turning back on the summit",
+        "category": "late_answer",
+        "first_rank": 4,
+        "top_hit": "tech/runbook-deploy.md",
+        "relevant": [
+          "travel/hiking-alps.md"
+        ]
+      },
+      {
+        "query": "which plan is for the 10K race",
+        "category": "similar_subject",
+        "first_rank": 2,
+        "top_hit": "health/marathon-training.md",
+        "relevant": [
+          "health/running-plan.md"
+        ]
+      }
+    ]
+  }
+}

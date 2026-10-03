@@ -1,0 +1,504 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index eaaa212..0f2c498 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -14,6 +14,9 @@
+ - Eval: new benchmark in `eval/benchmark/` (62 documents in five formats, 97 queries in eleven categories, evidence
+   for every relevance judgment) and a `--by-category` report. `tests/test_benchmark.py` keeps its composition and
+   judgments honest without running any search. No-answer and multilingual queries are not covered yet.
++- Eval: runs now print and record their configuration (model, chunk settings, library versions, SHA-256 fingerprints
++  of the corpus and query file, stable across operating systems). New `--show-misses` lists queries whose first
++  relevant result is not rank 1, and `--json FILE` saves the full run.
+ - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
+ 
+ ## 0.1.0
+diff --git a/README.md b/README.md
+index 3a4ba7c..77d5a0d 100644
+--- a/README.md
++++ b/README.md
+@@ -125,6 +125,10 @@ that are absolute, outside the corpus, missing, or not indexable) and exits with
+ an exact quote. Run it with `--by-category` to see where retrieval is weak. See `eval/benchmark/README.md` for what it
+ covers, what it does not, and the rules for changing it. The small `examples/corpus` set remains a quick demo.
+ 
++Every run begins by printing the model, chunk settings, library versions and content fingerprints of the corpus and
++queries, so two runs can be compared. `--show-misses` lists the queries whose first relevant document is not the top
++result, and `--json FILE` saves the whole run (configuration and all metrics) in machine-readable form.
++
+ ### Quality gate
+ 
+ By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops:
+diff --git a/eval/benchmark/README.md b/eval/benchmark/README.md
+index c7f6eeb..c061fc2 100644
+--- a/eval/benchmark/README.md
++++ b/eval/benchmark/README.md
+@@ -60,6 +60,24 @@ recall@1. In `redundant_answer` any one document suffices, so MRR is the fairer
+ near-duplicates (by text similarity), and a minimum number of queries per category. It runs no searches, so it cannot
+ be satisfied by tuning the data to an algorithm.
+ 
++## Recording and comparing runs
++
++Every run prints its configuration first: model, chunk settings, library versions, and a content fingerprint of the
++corpus and of the query file. Fingerprints are SHA-256 over file contents with text line endings normalised, so the
++same benchmark hashes the same on Linux, macOS and Windows, and any edit to a document or query changes them. Two runs
++are comparable only if their fingerprints match.
++
++Fingerprints of benchmark v1: corpus `39c2e84b7a80`, queries `8a99ed3d727d` (first 12 hex digits).
++
++```bash
++python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json \
++    --by-category --show-misses --json run.json
++```
++
++`--show-misses` lists, for each mode, the queries whose first relevant document is not the top result, with the rank
++it reached and what ranked first. `--json` writes the same configuration plus every metric (overall, per category)
++for archiving or diffing; it records the corpus path as given on the command line, not an absolute path.
++
+ ## Rules for changing it
+ 
+ 1. Write documents and queries **before** looking at any retrieval results.
+diff --git a/eval/retrieval_eval.py b/eval/retrieval_eval.py
+index c555eb0..84aa6ad 100644
+--- a/eval/retrieval_eval.py
++++ b/eval/retrieval_eval.py
+@@ -10,9 +10,12 @@ Dataset format: a non-empty JSON list of objects
+ 
+ from __future__ import annotations
+ 
++import hashlib
+ import json
+ import math
++import platform
+ import time
++from importlib import metadata
+ from collections.abc import Iterable, Sequence
+ from dataclasses import dataclass
+ from pathlib import Path, PurePosixPath
+@@ -299,3 +302,114 @@ def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) ->
+ 
+ def count_checks(thresholds: Thresholds) -> int:
+     return sum(len(wanted) for wanted in thresholds.values())
++
++
++# -- reporting: misses and run record --------------------------------------------------------
++
++
++@dataclass(frozen=True)
++class Trace:
++    """What one query returned: the ranked corpus-relative paths and where the first relevant one landed."""
++
++    query: Query
++    ranked: tuple[str, ...]
++    first_rank: int | None  # 1-based; None when no relevant document was returned
++
++
++def trace_queries(searcher, queries: Sequence[Query], root: Path, mode: str, limit: int = max(KS)) -> list[Trace]:
++    traces = []
++    for query in queries:
++        ranked = tuple(relative_path(h.path, root) for h in searcher.search(query.text, limit=limit, mode=mode))
++        wanted = set(query.relevant)
++        first = next((rank for rank, path in enumerate(ranked, start=1) if path in wanted), None)
++        traces.append(Trace(query, ranked, first))
++    return traces
++
++
++def misses(traces: Iterable[Trace]) -> list[Trace]:
++    """Queries whose first relevant document is not the top result."""
++    return [t for t in traces if t.first_rank != 1]
++
++
++def format_miss(trace: Trace, limit: int = max(KS), width: int = 72) -> list[str]:
++    text = trace.query.text if len(trace.query.text) <= width else trace.query.text[: width - 1] + "…"
++    where = f"rank {trace.first_rank}" if trace.first_rank else f"not in top {limit}"
++    category = trace.query.category or "uncategorized"
++    top = trace.ranked[0] if trace.ranked else "(no results)"
++    return [
++        f"  {category:<20} {where:<14} {text!r}",
++        f"      top hit: {top}   wanted: {', '.join(trace.query.relevant)}",
++    ]
++
++
++def _digest(data: bytes) -> str:
++    return hashlib.sha256(data).hexdigest()
++
++
++def _stable_bytes(path: Path) -> bytes:
++    """File bytes, with line endings normalised for text so the same content hashes the same on every OS."""
++    data = path.read_bytes()
++    if path.suffix.lower() in {".pdf", ".docx", ".epub"}:
++        return data
++    return data.replace(b"\r\n", b"\n")
++
++
++def dataset_fingerprint(path: str | Path) -> str:
++    return _digest(_stable_bytes(Path(path)))
++
++
++def corpus_fingerprint(root: Path) -> str:
++    """Hash of every file's relative path and content, independent of platform line endings and file order."""
++    lines = sorted(
++        f"{p.relative_to(root).as_posix()}\0{_digest(_stable_bytes(p))}" for p in root.rglob("*") if p.is_file()
++    )
++    return _digest("\n".join(lines).encode("utf-8"))
++
++
++def _version(package: str) -> str:
++    try:
++        return metadata.version(package)
++    except metadata.PackageNotFoundError:
++        return "not installed"
++
++
++def environment_info(
++    model: str, settings, queries_path: str | Path, corpus_path: str | Path, root: Path, queries: Sequence[Query]
++) -> dict:
++    """Everything needed to tell whether two runs are comparable."""
++    return {
++        "model": model,
++        "chunk_words": settings.chunk_words,
++        "overlap_words": settings.overlap_words,
++        "dataset": {"path": str(queries_path), "queries": len(queries), "sha256": dataset_fingerprint(queries_path)},
++        "corpus": {
++            "path": str(corpus_path),
++            "files": sum(1 for p in root.rglob("*") if p.is_file()),
++            "sha256": corpus_fingerprint(root),
++        },
++        "versions": {
++            "python": platform.python_version(),
++            "localseek": _version("localseek"),
++            "fastembed": _version("fastembed"),
++            "numpy": _version("numpy"),
++        },
++        "platform": platform.platform(),
++    }
++
++
++def format_environment(info: dict) -> list[str]:
++    v, d, c = info["versions"], info["dataset"], info["corpus"]
++    return [
++        f"model:    {info['model']}",
++        f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
++        f"dataset:  {d['path']}  ({d['queries']} queries, sha256 {d['sha256'][:12]})",
++        f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
++        f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",
++        f"platform: {info['platform']}",
++    ]
++
++
++def result_record(result: ModeResult) -> dict:
++    values = metric_values(result)
++    values["latency_ms"] = result.latency_ms
++    return values
+diff --git a/eval/run_eval.py b/eval/run_eval.py
+index 283b6f0..9c491d4 100644
+--- a/eval/run_eval.py
++++ b/eval/run_eval.py
+@@ -9,7 +9,11 @@ Each query lists the documents that should be found, as paths relative to the co
+ Recall@k is the fraction of a query's relevant documents found in the top k; MRR uses the rank of the
+ first relevant document. Use `--model hash` for a fast, lexical-only baseline that needs no model download.
+ 
+-Pass `--by-category` to also break results down by each query's optional `category` field.
++Every run starts by printing what it ran on: the model, chunk settings, library versions, and content hashes of
++the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics.
++
++Reports: `--by-category` breaks results down by each query's optional `category` field. `--show-misses` lists, per
++mode, every query whose first relevant document is not the top result.
+ 
+ Quality gate: pass `--thresholds FILE` to fail when a metric falls below its required minimum.
+ 
+@@ -25,6 +29,7 @@ thresholds.
+ from __future__ import annotations
+ 
+ import argparse
++import json
+ import sys
+ import tempfile
+ import time
+@@ -37,10 +42,16 @@ from retrieval_eval import (
+     check_indexed,
+     check_thresholds,
+     count_checks,
++    environment_info,
+     evaluate,
+     evaluate_by_category,
++    format_environment,
++    format_miss,
+     load_dataset,
+     load_thresholds,
++    misses,
++    result_record,
++    trace_queries,
+ )
+ 
+ from localseek.config import Settings
+@@ -57,8 +68,11 @@ def _fail(title: str, problems: list[str]) -> int:
+     return 2
+ 
+ 
+-def _print_by_category(searcher, queries, root) -> None:
+-    per_mode = {mode: evaluate_by_category(searcher, queries, root, mode, KS) for mode in MODES}
++def _by_category(searcher, queries, root) -> dict:
++    return {mode: evaluate_by_category(searcher, queries, root, mode, KS) for mode in MODES}
++
++
++def _print_by_category(per_mode: dict, queries) -> None:
+     names = list(per_mode[MODES[0]])
+     width = max(len(n) for n in names) + 2
+     print("\nBy category (recall@1 / recall@5 / MRR)")
+@@ -72,12 +86,36 @@ def _print_by_category(searcher, queries, root) -> None:
+         print(f"{name:<{width}}{count:<5}{cells}")
+ 
+ 
++def _print_misses(searcher, queries, root) -> dict:
++    print("\nMisses: queries whose first relevant document is not the top result")
++    recorded = {}
++    for mode in MODES:
++        missed = misses(trace_queries(searcher, queries, root, mode))
++        print(f"\n[{mode}] {len(missed)} of {len(queries)}")
++        for trace in missed:
++            for line in format_miss(trace):
++                print(line)
++        recorded[mode] = [
++            {
++                "query": t.query.text,
++                "category": t.query.category,
++                "first_rank": t.first_rank,
++                "top_hit": t.ranked[0] if t.ranked else None,
++                "relevant": list(t.query.relevant),
++            }
++            for t in missed
++        ]
++    return recorded
++
++
+ def main() -> int:
+     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+     parser.add_argument("--corpus", required=True)
+     parser.add_argument("--queries", required=True)
+     parser.add_argument("--model", default="BAAI/bge-small-en-v1.5")
+     parser.add_argument("--by-category", action="store_true", help="also report metrics per query category")
++    parser.add_argument("--show-misses", action="store_true", help="list queries whose first relevant hit isn't rank 1")
++    parser.add_argument("--json", metavar="FILE", help="also write the run record and all metrics to FILE")
+     parser.add_argument("--thresholds", help="JSON file of minimum metrics per mode; enables the quality gate")
+     args = parser.parse_args()
+ 
+@@ -97,7 +135,10 @@ def main() -> int:
+ 
+     embedder = get_embedder(args.model)
+     settings = Settings(model=args.model)
++    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
++    print("\n".join(format_environment(info)) + "\n")
+ 
++    record: dict = {"environment": info}
+     with tempfile.TemporaryDirectory() as tmp:
+         store = Store(Path(tmp) / "eval.db")
+         try:
+@@ -117,15 +158,34 @@ def main() -> int:
+                 result = results[mode] = evaluate(searcher, queries, root, mode, KS)
+                 row = f"{mode:<9}" + "".join(f"{result.recall[k]:<11.2f}" for k in KS)
+                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
+-            if args.by_category:
+-                _print_by_category(searcher, queries, root)
++            record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
++            record["results"] = {mode: result_record(r) for mode, r in results.items()}
++            if args.by_category or args.json:
++                per_mode = _by_category(searcher, queries, root)
++                record["by_category"] = {
++                    mode: {name: result_record(r) for name, r in groups.items()} for mode, groups in per_mode.items()
++                }
++                if args.by_category:
++                    _print_by_category(per_mode, queries)
++            if args.show_misses or args.json:
++                recorded = _print_misses(searcher, queries, root) if args.show_misses else None
++                if args.json:
++                    record["misses"] = recorded or {
++                        mode: len(misses(trace_queries(searcher, queries, root, mode))) for mode in MODES
++                    }
+         finally:
+             store.close()
+ 
++    failures = check_thresholds(results, thresholds) if thresholds is not None else []
++    if thresholds is not None:
++        record["gate"] = {"checks": count_checks(thresholds), "failures": [str(f) for f in failures]}
++    if args.json:
++        Path(args.json).write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
++        print(f"\nWrote {args.json}")
++
+     if thresholds is None:
+         print("\nNo --thresholds given: report only, nothing was checked.")
+         return 0
+-    failures = check_thresholds(results, thresholds)
+     if failures:
+         print("\nEvaluation failed:", file=sys.stderr)
+         for failure in failures:
+diff --git a/tests/test_eval.py b/tests/test_eval.py
+index 7fec2fb..a3f8968 100644
+--- a/tests/test_eval.py
++++ b/tests/test_eval.py
+@@ -23,13 +23,19 @@ from retrieval_eval import (  # noqa: E402
+     ThresholdError,
+     check_indexed,
+     check_thresholds,
++    corpus_fingerprint,
+     count_checks,
++    dataset_fingerprint,
++    environment_info,
+     evaluate,
+     evaluate_by_category,
++    format_miss,
+     load_dataset,
+     load_thresholds,
++    misses,
+     relative_path,
+     score_query,
++    trace_queries,
+ )
+ 
+ MODES = ("hybrid", "vector", "keyword")
+@@ -169,6 +175,99 @@ class CategoryTests(EvalBase):
+         store.close()
+ 
+ 
++class FingerprintTests(EvalBase):
++    def copy_corpus(self, name, transform=lambda path, data: data):
++        target = self.dir / name
++        for path in self.root.rglob("*"):
++            if path.is_file():
++                out = target / path.relative_to(self.root)
++                out.parent.mkdir(parents=True, exist_ok=True)
++                out.write_bytes(transform(path, path.read_bytes()))
++        return target.resolve()
++
++    def test_text_line_endings_do_not_change_the_fingerprint(self):
++        crlf = self.copy_corpus("crlf", lambda path, data: data.replace(b"\n", b"\r\n"))
++        self.assertEqual(corpus_fingerprint(self.root), corpus_fingerprint(crlf))
++        lf, windows = self.dir / "a.json", self.dir / "b.json"
++        lf.write_bytes(b'[\n  {"query": "x"}\n]\n')
++        windows.write_bytes(b'[\r\n  {"query": "x"}\r\n]\r\n')
++        self.assertEqual(dataset_fingerprint(lf), dataset_fingerprint(windows))
++
++    def test_content_name_and_new_files_change_the_fingerprint(self):
++        base = corpus_fingerprint(self.root)
++        edited = self.copy_corpus("edited", lambda p, d: d.replace(b"Feed", b"Skip") if p.name == "sourdough.md" else d)
++        self.assertNotEqual(base, corpus_fingerprint(edited))
++        renamed = self.copy_corpus("renamed")
++        (renamed / "work" / "notes.md").rename(renamed / "work" / "memo.md")
++        self.assertNotEqual(base, corpus_fingerprint(renamed))
++        added = self.copy_corpus("added")
++        write(added / "extra.md", "one more file")
++        self.assertNotEqual(base, corpus_fingerprint(added))
++
++    def test_binary_files_are_hashed_as_is(self):
++        one, two = self.copy_corpus("one"), self.copy_corpus("two")
++        (one / "doc.pdf").write_bytes(b"%PDF line\nbreak")
++        (two / "doc.pdf").write_bytes(b"%PDF line\r\nbreak")
++        self.assertNotEqual(corpus_fingerprint(one), corpus_fingerprint(two))
++
++    def test_environment_record_is_complete_and_has_no_absolute_corpus_path(self):
++        path = self.dataset([{"query": "q", "relevant": ["notes.md"]}])
++        queries = load_dataset(path, self.root)
++        info = environment_info("hash", Settings(model="hash"), path, "corpus", self.root, queries)
++        self.assertEqual(info["model"], "hash")
++        self.assertEqual((info["chunk_words"], info["overlap_words"]), (220, 30))
++        self.assertEqual(info["corpus"], {"path": "corpus", "files": 4, "sha256": corpus_fingerprint(self.root)})
++        self.assertEqual(info["dataset"]["queries"], 1)
++        self.assertEqual({"python", "localseek", "fastembed", "numpy"}, set(info["versions"]))
++        self.assertNotIn(str(self.dir), json.dumps(info["corpus"]))  # the corpus path is recorded as given
++
++
++class TraceTests(EvalBase):
++    def setUp(self):
++        super().setUp()
++        self.store = Store(self.dir / "i.db")
++        self.embedder = HashEmbedder()
++        index_paths(self.store, self.embedder, [self.root], Settings(model="hash"))
++        self.searcher = Searcher(self.store, self.embedder)
++
++    def tearDown(self):
++        self.store.close()
++        super().tearDown()
++
++    def trace(self, text, relevant):
++        return trace_queries(self.searcher, [Query(text, tuple(relevant), "demo")], self.root, "keyword")[0]
++
++    def test_top_hit_is_not_a_miss(self):
++        trace = self.trace("tax invoice deadlines", ["work/notes.md"])
++        self.assertEqual(trace.first_rank, 1)
++        self.assertEqual(misses([trace]), [])
++
++    def test_lower_rank_is_reported_with_its_position(self):
++        trace = self.trace("sourdough starter feeding schedule flour ratios", ["recipes/sourdough.md"])
++        self.assertEqual(trace.first_rank, 2)
++        self.assertEqual(trace.ranked[0], "recipes/notes.md")
++        self.assertEqual(misses([trace]), [trace])  # found, but not first, still counts as a miss
++        lines = "\n".join(format_miss(trace))
++        self.assertIn("rank 2", lines)
++        self.assertIn("top hit: recipes/notes.md", lines)
++        self.assertIn("wanted: recipes/sourdough.md", lines)
++
++    def test_absent_relevant_document_is_reported_as_not_in_top_k(self):
++        trace = self.trace("tax invoice deadlines", ["recipes/sourdough.md"])
++        self.assertIsNone(trace.first_rank)
++        self.assertEqual(misses([trace]), [trace])
++        self.assertIn("not in top 10", "\n".join(format_miss(trace)))
++
++    def test_query_with_no_results_is_handled(self):
++        trace = self.trace("zzzzqqqq", ["notes.md"])
++        self.assertEqual(trace.ranked, ())
++        self.assertIn("(no results)", "\n".join(format_miss(trace)))
++
++    def test_long_queries_are_truncated_in_the_report(self):
++        trace = self.trace("tax " * 80, ["work/notes.md"])
++        self.assertLess(len(format_miss(trace)[0]), 140)
++
++
+ class IndexedCheckTests(EvalBase):
+     def test_unindexed_relevant_document_is_rejected(self):
+         write(self.root / "data.xyz", "unsupported suffix, never indexed")
+@@ -405,6 +504,47 @@ class CliTests(EvalBase):
+         for category in ("semantic_paraphrase", "late_answer", "near_duplicate"):
+             self.assertIn(category, result.stdout)
+ 
++    def test_run_record_is_printed_first(self):
++        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"]}]
++        result = self.run_cli(self.dataset(data))
++        self.assertEqual(result.returncode, 0, result.stderr)
++        head = result.stdout.split("Indexed")[0]
++        for label in ("model:    hash", "chunking: 220 words, 30 overlap", "dataset:", "corpus:", "versions:"):
++            self.assertIn(label, head)
++        self.assertRegex(head, r"sha256 [0-9a-f]{12}")
++
++    def test_show_misses_lists_failures_per_mode(self):
++        data = [
++            {"query": "tax invoice deadlines", "relevant": ["work/notes.md"]},
++            {"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"], "category": "wrong"},
++        ]
++        result = self.run_cli(self.dataset(data), extra=["--show-misses"])
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertIn("[keyword] 1 of 2", result.stdout)
++        self.assertIn("not in top 10", result.stdout)
++        self.assertIn("wanted: recipes/sourdough.md", result.stdout)
++
++    def test_json_record_matches_the_printed_run(self):
++        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"}]
++        out = self.dir / "run.json"
++        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"recall@1": 1.0}}, extra=["--json", str(out)])
++        self.assertEqual(result.returncode, 0, result.stderr)
++        record = json.loads(out.read_text(encoding="utf-8"))
++        self.assertEqual(record["environment"]["model"], "hash")
++        self.assertEqual(record["results"]["keyword"]["recall@1"], 1.0)
++        self.assertEqual(set(record["by_category"]["keyword"]), {"exact"})
++        self.assertEqual(record["gate"], {"checks": 1, "failures": []})
++        self.assertEqual(set(record["misses"]), {"hybrid", "vector", "keyword"})
++        self.assertIn(record["environment"]["corpus"]["sha256"][:12], result.stdout)
++
++    def test_json_records_gate_failures_and_still_exits_1(self):
++        data = [{"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"]}]
++        out = self.dir / "run.json"
++        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"mrr": 0.5}}, extra=["--json", str(out)])
++        self.assertEqual(result.returncode, 1)
++        record = json.loads(out.read_text(encoding="utf-8"))
++        self.assertEqual(len(record["gate"]["failures"]), 1)
++
+     def test_shipped_dataset_is_valid(self):
+         result = self.run_cli(REPO / "eval" / "queries.json", corpus=REPO / "examples" / "corpus")
+         self.assertEqual(result.returncode, 0, result.stderr)

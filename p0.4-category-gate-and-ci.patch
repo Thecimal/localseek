@@ -1,0 +1,1345 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index e002c69..2b0fc15 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -28,3 +28,8 @@ jobs:
+         run: ruff check src tests eval
+       - name: Test
+         run: pytest -q
++      # Deterministic retrieval-quality gate: fails the build if search quality drops below the recorded floors.
++      # It uses the hashing embedder, so it measures the keyword machinery and fusion, not semantic quality; the
++      # real model is checked by the manual "Model evaluation" workflow.
++      - name: Retrieval quality gate
++        run: python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json --model hash --thresholds eval/benchmark/thresholds-hash.json --by-category
+diff --git a/.github/workflows/eval-model.yml b/.github/workflows/eval-model.yml
+new file mode 100644
+index 0000000..5943788
+--- /dev/null
++++ b/.github/workflows/eval-model.yml
+@@ -0,0 +1,46 @@
++name: Model evaluation
++
++# Runs the benchmark with the real embedding model and checks it against thresholds derived from a recorded baseline.
++# Manual for now: it downloads the model (about 70 MB). Once the thresholds file below is committed and a second
++# environment has confirmed it, add a weekly schedule (for example `schedule: [{cron: "0 6 * * 1"}]`) so drift in
++# the model runtime is noticed.
++on:
++  workflow_dispatch:
++    inputs:
++      model:
++        description: Embedding model
++        default: BAAI/bge-small-en-v1.5
++
++jobs:
++  evaluate:
++    runs-on: ubuntu-latest
++    env:
++      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.fastembed-cache
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-python@v5
++        with:
++          python-version: "3.12"
++      - uses: actions/cache@v4
++        with:
++          path: .fastembed-cache
++          key: fastembed-${{ inputs.model }}
++      - name: Install
++        run: |
++          python -m pip install --upgrade pip
++          pip install -e .
++      - name: Check thresholds exist
++        run: |
++          test -f eval/benchmark/thresholds-bge-small-en-v1.5.json || {
++            echo "Missing eval/benchmark/thresholds-bge-small-en-v1.5.json. Derive it from the committed baseline:"
++            echo "  python eval/derive_thresholds.py --baseline eval/benchmark/baselines/bge-small-en-v1.5.json --queries eval/benchmark/queries.json --out eval/benchmark/thresholds-bge-small-en-v1.5.json"
++            exit 1
++          }
++      - name: Evaluate
++        run: python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json --model "${{ inputs.model }}" --thresholds eval/benchmark/thresholds-bge-small-en-v1.5.json --by-category --show-misses --json run.json
++      - name: Keep the run record
++        if: always()
++        uses: actions/upload-artifact@v4
++        with:
++          name: eval-run
++          path: run.json
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 0f2c498..59f4535 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -17,6 +17,11 @@
+ - Eval: runs now print and record their configuration (model, chunk settings, library versions, SHA-256 fingerprints
+   of the corpus and query file, stable across operating systems). New `--show-misses` lists queries whose first
+   relevant result is not rank 1, and `--json FILE` saves the full run.
++- Eval: thresholds can now set per-category floors (`by_category`) and record the benchmark version they were derived
++  from (`meta`); a run against a different version is refused. `eval/derive_thresholds.py` derives a thresholds file
++  from a recorded baseline by a documented rule. The benchmark ships `baselines/hash.json` and `thresholds-hash.json`.
++- CI: the pull-request workflow now runs the hash-embedder retrieval gate on every operating system, and a manual
++  "Model evaluation" workflow runs the real model against thresholds derived from its baseline.
+ - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
+ 
+ ## 0.1.0
+diff --git a/README.md b/README.md
+index 77d5a0d..2ee8564 100644
+--- a/README.md
++++ b/README.md
+@@ -131,19 +131,30 @@ result, and `--json FILE` saves the whole run (configuration and all metrics) in
+ 
+ ### Quality gate
+ 
+-By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops:
++By default the script only reports. Pass `--thresholds FILE` to make it fail when quality drops. The repository ships
++a gate for the benchmark that CI runs on every pull request:
+ 
+ ```bash
+-python eval/run_eval.py --corpus examples/corpus --queries eval/queries.json --model hash --thresholds my-thresholds.json
++python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json \
++    --model hash --thresholds eval/benchmark/thresholds-hash.json --by-category
+ ```
+ 
++A thresholds file sets minimum values, overall per mode and optionally per query category:
++
+ ```json
+-{"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
++{
++  "hybrid": {"recall@1": 0.8, "mrr": 0.85},
++  "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
++  "meta": {"dataset_sha256": "...", "corpus_sha256": "..."}
++}
+ ```
+ 
+-The numbers above only illustrate the format; the repository does not ship thresholds yet. Valid metrics are
+-`recall@1`, `recall@5`, `recall@10`, and `mrr`; valid modes are `hybrid`, `vector`, and `keyword`. Unlisted modes and
+-metrics are reported but not checked, and unknown names are rejected so a typo cannot silently disable a check.
++Valid metrics are `recall@1`, `recall@5`, `recall@10`, and `mrr`; valid modes are `hybrid`, `vector`, and `keyword`.
++Anything not listed is reported but not checked. Unknown modes, metrics and categories are rejected, so a typo cannot
++silently disable a check. Category floors catch a collapse in one kind of query that an overall average would hide.
++`meta` records which version of the benchmark the floors were derived from, and the run refuses to gate a different
++version; `eval/derive_thresholds.py` builds a file from a recorded baseline by a fixed rule (see
++`eval/benchmark/README.md`).
+ 
+ | Exit status | Meaning |
+ |---|---|
+diff --git a/eval/benchmark/README.md b/eval/benchmark/README.md
+index c061fc2..a093f49 100644
+--- a/eval/benchmark/README.md
++++ b/eval/benchmark/README.md
+@@ -78,6 +78,34 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
+ it reached and what ranked first. `--json` writes the same configuration plus every metric (overall, per category)
+ for archiving or diffing; it records the corpus path as given on the command line, not an absolute path.
+ 
++## Quality gate and thresholds
++
++`thresholds-hash.json` is the gate CI runs on every pull request (Linux, macOS and Windows). It uses the hash
++embedder, so it protects the keyword search, the fusion and the indexing from regressions, but it says nothing about
++semantic quality. The semantic check is the manual "Model evaluation" workflow, which needs a thresholds file derived
++from a real-model baseline:
++
++```bash
++python eval/derive_thresholds.py --baseline eval/benchmark/baselines/bge-small-en-v1.5.json \
++    --queries eval/benchmark/queries.json --out eval/benchmark/thresholds-bge-small-en-v1.5.json
++```
++
++Thresholds are **derived by a fixed rule from a recorded baseline**, not chosen by hand:
++
++* Overall, per mode: `recall@1`, `recall@5` and `mrr` must stay above the baseline minus 0.02 (about two queries).
++* Per category, per mode: `recall@5` and `mrr` must stay above the baseline minus 1/n, one query's worth for that
++  category. `recall@1` is not gated per category, because categories with several relevant documents cannot reach 1.0.
++* Floors are rounded down to two decimals; a floor of zero checks nothing and is dropped.
++
++They are **regression floors, not quality goals**: they lock in what the baseline achieved, weak spots included, so
++improving search never fails the gate but making it worse does. The file records the fingerprints of the benchmark it
++was derived from, and a run against a different corpus or query file is refused until the thresholds are re-derived.
++Changing the benchmark therefore means: record a new baseline with `--json`, derive the thresholds, commit both.
++
++The hash gate was checked against a deliberately broken ranking (keyword results returned in reverse order): the clean
++run passes all its checks and the broken one fails with every affected row listed, while the untouched vector mode is
++correctly not reported.
++
+ ## Rules for changing it
+ 
+ 1. Write documents and queries **before** looking at any retrieval results.
+diff --git a/eval/benchmark/baselines/hash.json b/eval/benchmark/baselines/hash.json
+new file mode 100644
+index 0000000..922fce4
+--- /dev/null
++++ b/eval/benchmark/baselines/hash.json
+@@ -0,0 +1,316 @@
++{
++  "environment": {
++    "model": "hash",
++    "chunk_words": 220,
++    "overlap_words": 30,
++    "dataset": {
++      "path": "eval/benchmark/queries.json",
++      "queries": 97,
++      "sha256": "8a99ed3d727d1a845925408a9384cc6661f1324ce8ff528dea41a172dc725362"
++    },
++    "corpus": {
++      "path": "eval/benchmark/corpus",
++      "files": 62,
++      "sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6"
++    },
++    "versions": {
++      "python": "3.12.3",
++      "localseek": "0.1.0",
++      "fastembed": "not installed",
++      "numpy": "2.4.4"
++    },
++    "platform": "Linux-6.18.44-fc-v50-x86_64-with-glibc2.39"
++  },
++  "indexed": {
++    "files": 62,
++    "chunks": 80
++  },
++  "results": {
++    "hybrid": {
++      "recall@1": 0.6262886597938144,
++      "recall@5": 0.8359106529209621,
++      "recall@10": 0.8848797250859106,
++      "mrr": 0.7875715922107674,
++      "latency_ms": 1.7165955670103572
++    },
++    "vector": {
++      "recall@1": 0.3848797250859107,
++      "recall@5": 0.6572164948453608,
++      "recall@10": 0.7525773195876289,
++      "mrr": 0.554217803960072,
++      "latency_ms": 0.9172157938144092
++    },
++    "keyword": {
++      "recall@1": 0.6958762886597938,
++      "recall@5": 0.929553264604811,
++      "recall@10": 0.9690721649484536,
++      "mrr": 0.8581042382588775,
++      "latency_ms": 1.0602141237113427
++    }
++  },
++  "by_category": {
++    "hybrid": {
++      "exact_keyword": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 1.0637750000000779
++      },
++      "technical_term": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 1.1248518181797738
++      },
++      "rare_term": {
++        "recall@1": 0.875,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.9375,
++        "latency_ms": 1.1229182500009927
++      },
++      "semantic_paraphrase": {
++        "recall@1": 0.16666666666666666,
++        "recall@5": 0.4166666666666667,
++        "recall@10": 0.5,
++        "mrr": 0.25972222222222224,
++        "latency_ms": 1.7898170833324418
++      },
++      "multi_document": {
++        "recall@1": 0.3645833333333333,
++        "recall@5": 0.59375,
++        "recall@10": 0.8125,
++        "mrr": 0.9375,
++        "latency_ms": 1.6482338749987946
++      },
++      "ambiguous": {
++        "recall@1": 0.38888888888888884,
++        "recall@5": 0.9166666666666666,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 1.0452848333339186
++      },
++      "long_question": {
++        "recall@1": 0.625,
++        "recall@5": 0.6875,
++        "recall@10": 0.8125,
++        "mrr": 0.6701388888888888,
++        "latency_ms": 2.662925750001932
++      },
++      "redundant_answer": {
++        "recall@1": 0.25,
++        "recall@5": 0.7222222222222222,
++        "recall@10": 0.8055555555555555,
++        "mrr": 0.6555555555555556,
++        "latency_ms": 1.5521199999994906
++      },
++      "near_duplicate": {
++        "recall@1": 0.6666666666666666,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.7916666666666666,
++        "latency_ms": 1.4964543333348956
++      },
++      "shared_filename": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 1.2809173749985803
++      },
++      "late_answer": {
++        "recall@1": 0.4444444444444444,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.6370370370370371,
++        "latency_ms": 1.562110222222499
++      },
++      "similar_subject": {
++        "recall@1": 0.6,
++        "recall@5": 0.8,
++        "recall@10": 0.8,
++        "mrr": 0.7,
++        "latency_ms": 1.5638191999983064
++      }
++    },
++    "vector": {
++      "exact_keyword": {
++        "recall@1": 0.6,
++        "recall@5": 0.9,
++        "recall@10": 0.9,
++        "mrr": 0.7333333333333333,
++        "latency_ms": 0.8578967999994802
++      },
++      "technical_term": {
++        "recall@1": 0.8181818181818182,
++        "recall@5": 0.9090909090909091,
++        "recall@10": 0.9090909090909091,
++        "mrr": 0.8636363636363636,
++        "latency_ms": 0.8217982727258418
++      },
++      "rare_term": {
++        "recall@1": 0.5,
++        "recall@5": 0.875,
++        "recall@10": 0.875,
++        "mrr": 0.65625,
++        "latency_ms": 0.7358367499996632
++      },
++      "semantic_paraphrase": {
++        "recall@1": 0.08333333333333333,
++        "recall@5": 0.25,
++        "recall@10": 0.3333333333333333,
++        "mrr": 0.1300925925925926,
++        "latency_ms": 0.8316723333336995
++      },
++      "multi_document": {
++        "recall@1": 0.125,
++        "recall@5": 0.44791666666666663,
++        "recall@10": 0.5625,
++        "mrr": 0.4895833333333333,
++        "latency_ms": 0.8024316250008212
++      },
++      "ambiguous": {
++        "recall@1": 0.3055555555555555,
++        "recall@5": 0.8611111111111112,
++        "recall@10": 0.8611111111111112,
++        "mrr": 0.875,
++        "latency_ms": 0.7486145000020391
++      },
++      "long_question": {
++        "recall@1": 0.25,
++        "recall@5": 0.375,
++        "recall@10": 0.625,
++        "mrr": 0.32514880952380953,
++        "latency_ms": 0.9504490000011856
++      },
++      "redundant_answer": {
++        "recall@1": 0.08333333333333333,
++        "recall@5": 0.5,
++        "recall@10": 0.7222222222222222,
++        "mrr": 0.37797619047619047,
++        "latency_ms": 0.9326966666662884
++      },
++      "near_duplicate": {
++        "recall@1": 0.3333333333333333,
++        "recall@5": 0.6666666666666666,
++        "recall@10": 0.8333333333333334,
++        "mrr": 0.4777777777777778,
++        "latency_ms": 0.8701766666708485
++      },
++      "shared_filename": {
++        "recall@1": 0.625,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.8125,
++        "latency_ms": 0.9066393749996848
++      },
++      "late_answer": {
++        "recall@1": 0.2222222222222222,
++        "recall@5": 0.5555555555555556,
++        "recall@10": 0.7777777777777778,
++        "mrr": 0.39858906525573196,
++        "latency_ms": 0.9892924444443452
++      },
++      "similar_subject": {
++        "recall@1": 0.6,
++        "recall@5": 0.6,
++        "recall@10": 0.8,
++        "mrr": 0.625,
++        "latency_ms": 0.9055926000030468
++      }
++    },
++    "keyword": {
++      "exact_keyword": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 0.24316650000173468
++      },
++      "technical_term": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 0.3837363636359276
++      },
++      "rare_term": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 0.2309976249996737
++      },
++      "semantic_paraphrase": {
++        "recall@1": 0.16666666666666666,
++        "recall@5": 0.5,
++        "recall@10": 0.75,
++        "mrr": 0.31828703703703703,
++        "latency_ms": 1.566791666668621
++      },
++      "multi_document": {
++        "recall@1": 0.2708333333333333,
++        "recall@5": 0.9375,
++        "recall@10": 1.0,
++        "mrr": 0.8541666666666666,
++        "latency_ms": 1.245694750000581
++      },
++      "ambiguous": {
++        "recall@1": 0.38888888888888884,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 0.43447916666631653
++      },
++      "long_question": {
++        "recall@1": 0.6875,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.84375,
++        "latency_ms": 2.375385249997919
++      },
++      "redundant_answer": {
++        "recall@1": 0.4166666666666667,
++        "recall@5": 0.9444444444444445,
++        "recall@10": 1.0,
++        "mrr": 0.875,
++        "latency_ms": 1.0180545000035106
++      },
++      "near_duplicate": {
++        "recall@1": 0.8333333333333334,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.9166666666666666,
++        "latency_ms": 1.1033461666679993
++      },
++      "shared_filename": {
++        "recall@1": 1.0,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 1.0,
++        "latency_ms": 0.9198845000000233
++      },
++      "late_answer": {
++        "recall@1": 0.7777777777777778,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.8425925925925926,
++        "latency_ms": 1.4721793333352353
++      },
++      "similar_subject": {
++        "recall@1": 0.8,
++        "recall@5": 1.0,
++        "recall@10": 1.0,
++        "mrr": 0.9,
++        "latency_ms": 1.2112844000000678
++      }
++    }
++  },
++  "misses": {
++    "hybrid": 27,
++    "vector": 55,
++    "keyword": 19
++  }
++}
+diff --git a/eval/benchmark/thresholds-hash.json b/eval/benchmark/thresholds-hash.json
+new file mode 100644
+index 0000000..5735235
+--- /dev/null
++++ b/eval/benchmark/thresholds-hash.json
+@@ -0,0 +1,176 @@
++{
++  "hybrid": {
++    "recall@1": 0.6,
++    "recall@5": 0.81,
++    "mrr": 0.76
++  },
++  "vector": {
++    "recall@1": 0.36,
++    "recall@5": 0.63,
++    "mrr": 0.53
++  },
++  "keyword": {
++    "recall@1": 0.67,
++    "recall@5": 0.9,
++    "mrr": 0.83
++  },
++  "by_category": {
++    "hybrid": {
++      "exact_keyword": {
++        "recall@5": 0.9,
++        "mrr": 0.9
++      },
++      "technical_term": {
++        "recall@5": 0.9,
++        "mrr": 0.9
++      },
++      "rare_term": {
++        "recall@5": 0.87,
++        "mrr": 0.81
++      },
++      "semantic_paraphrase": {
++        "recall@5": 0.33,
++        "mrr": 0.17
++      },
++      "multi_document": {
++        "recall@5": 0.46,
++        "mrr": 0.81
++      },
++      "ambiguous": {
++        "recall@5": 0.75,
++        "mrr": 0.83
++      },
++      "long_question": {
++        "recall@5": 0.56,
++        "mrr": 0.54
++      },
++      "redundant_answer": {
++        "recall@5": 0.55,
++        "mrr": 0.48
++      },
++      "near_duplicate": {
++        "recall@5": 0.83,
++        "mrr": 0.62
++      },
++      "shared_filename": {
++        "recall@5": 0.87,
++        "mrr": 0.87
++      },
++      "late_answer": {
++        "recall@5": 0.88,
++        "mrr": 0.52
++      },
++      "similar_subject": {
++        "recall@5": 0.6,
++        "mrr": 0.5
++      }
++    },
++    "vector": {
++      "exact_keyword": {
++        "recall@5": 0.8,
++        "mrr": 0.63
++      },
++      "technical_term": {
++        "recall@5": 0.81,
++        "mrr": 0.77
++      },
++      "rare_term": {
++        "recall@5": 0.75,
++        "mrr": 0.53
++      },
++      "semantic_paraphrase": {
++        "recall@5": 0.16,
++        "mrr": 0.04
++      },
++      "multi_document": {
++        "recall@5": 0.32,
++        "mrr": 0.36
++      },
++      "ambiguous": {
++        "recall@5": 0.69,
++        "mrr": 0.7
++      },
++      "long_question": {
++        "recall@5": 0.25,
++        "mrr": 0.2
++      },
++      "redundant_answer": {
++        "recall@5": 0.33,
++        "mrr": 0.21
++      },
++      "near_duplicate": {
++        "recall@5": 0.5,
++        "mrr": 0.31
++      },
++      "shared_filename": {
++        "recall@5": 0.87,
++        "mrr": 0.68
++      },
++      "late_answer": {
++        "recall@5": 0.44,
++        "mrr": 0.28
++      },
++      "similar_subject": {
++        "recall@5": 0.4,
++        "mrr": 0.42
++      }
++    },
++    "keyword": {
++      "exact_keyword": {
++        "recall@5": 0.9,
++        "mrr": 0.9
++      },
++      "technical_term": {
++        "recall@5": 0.9,
++        "mrr": 0.9
++      },
++      "rare_term": {
++        "recall@5": 0.87,
++        "mrr": 0.87
++      },
++      "semantic_paraphrase": {
++        "recall@5": 0.41,
++        "mrr": 0.23
++      },
++      "multi_document": {
++        "recall@5": 0.81,
++        "mrr": 0.72
++      },
++      "ambiguous": {
++        "recall@5": 0.83,
++        "mrr": 0.83
++      },
++      "long_question": {
++        "recall@5": 0.87,
++        "mrr": 0.71
++      },
++      "redundant_answer": {
++        "recall@5": 0.77,
++        "mrr": 0.7
++      },
++      "near_duplicate": {
++        "recall@5": 0.83,
++        "mrr": 0.75
++      },
++      "shared_filename": {
++        "recall@5": 0.87,
++        "mrr": 0.87
++      },
++      "late_answer": {
++        "recall@5": 0.88,
++        "mrr": 0.73
++      },
++      "similar_subject": {
++        "recall@5": 0.8,
++        "mrr": 0.7
++      }
++    }
++  },
++  "meta": {
++    "derived_from": "hash.json",
++    "model": "hash",
++    "dataset_sha256": "8a99ed3d727d1a845925408a9384cc6661f1324ce8ff528dea41a172dc725362",
++    "corpus_sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6",
++    "rule": "overall: baseline - 0.02 (recall@1, recall@5, mrr); per category: baseline - 1/n (recall@5, mrr); rounded down to 2 decimals"
++  }
++}
+diff --git a/eval/derive_thresholds.py b/eval/derive_thresholds.py
+new file mode 100644
+index 0000000..f156533
+--- /dev/null
++++ b/eval/derive_thresholds.py
+@@ -0,0 +1,113 @@
++"""Derive a thresholds file from a recorded baseline run, by a fixed and documented rule.
++
++    python eval/run_eval.py --corpus C --queries Q --model M --json baseline.json
++    python eval/derive_thresholds.py --baseline baseline.json --queries Q --out thresholds.json
++
++The rule (so the numbers are auditable, not hand-picked):
++
++* Overall, per mode: recall@1, recall@5 and mrr must stay above the baseline minus 0.02 (about two queries of 100).
++* Per category, per mode: recall@5 and mrr must stay above the baseline minus 1/n, where n is the number of queries
++  in that category (one query's worth). recall@1 is not gated per category because categories with several
++  relevant documents cannot reach 1.0 at recall@1.
++* Floors are rounded down to two decimals, and a floor of 0 is dropped because it checks nothing.
++
++These are regression floors, not quality goals: they lock in what the baseline achieved, including weak spots.
++The output records the fingerprints of the dataset and corpus it was derived from, and the evaluator refuses to
++use it against a different version of the benchmark.
++
++Exit status: 0 success, 2 invalid input.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import math
++import sys
++from collections import Counter
++from pathlib import Path
++
++from retrieval_eval import dataset_fingerprint
++
++MODES = ("hybrid", "vector", "keyword")
++OVERALL_METRICS = ("recall@1", "recall@5", "mrr")
++CATEGORY_METRICS = ("recall@5", "mrr")
++OVERALL_SLACK = 0.02
++
++
++def floor2(value: float) -> float:
++    """Round down to two decimals, tolerating float noise (0.77 - 0.02 must give 0.75, not 0.74)."""
++    return math.floor(round(value * 100, 6)) / 100
++
++
++def derive(baseline: dict, category_sizes: dict[str, int], source: str) -> dict:
++    env = baseline["environment"]
++    thresholds: dict = {}
++    for mode in MODES:
++        thresholds[mode] = {
++            metric: floor
++            for metric in OVERALL_METRICS
++            if (floor := floor2(baseline["results"][mode][metric] - OVERALL_SLACK)) > 0
++        }
++    by_category: dict = {}
++    for mode in MODES:
++        cells = {}
++        for category, size in category_sizes.items():
++            observed = baseline["by_category"][mode][category]
++            floors = {
++                metric: floor
++                for metric in CATEGORY_METRICS
++                if (floor := floor2(observed[metric] - 1 / size)) > 0
++            }
++            if floors:
++                cells[category] = floors
++        by_category[mode] = cells
++    thresholds["by_category"] = by_category
++    thresholds["meta"] = {
++        "derived_from": source,
++        "model": env["model"],
++        "dataset_sha256": env["dataset"]["sha256"],
++        "corpus_sha256": env["corpus"]["sha256"],
++        "rule": "overall: baseline - 0.02 (recall@1, recall@5, mrr); per category: baseline - 1/n (recall@5, mrr); "
++        "rounded down to 2 decimals",
++    }
++    return thresholds
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
++    parser.add_argument("--baseline", required=True, help="JSON written by run_eval.py --json")
++    parser.add_argument("--queries", required=True, help="the query file the baseline was run on")
++    parser.add_argument("--out", required=True)
++    args = parser.parse_args()
++
++    try:
++        baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
++        queries = json.loads(Path(args.queries).read_text(encoding="utf-8"))
++        recorded = baseline["environment"]["dataset"]["sha256"]
++        for mode in MODES:
++            baseline["results"][mode]
++            baseline["by_category"][mode]
++    except (OSError, ValueError, KeyError) as exc:
++        print(f"error: cannot use baseline or queries: {exc!r}", file=sys.stderr)
++        print("  (the baseline must come from run_eval.py --json)", file=sys.stderr)
++        return 2
++    actual = dataset_fingerprint(args.queries)
++    if actual != recorded:
++        print(f"error: baseline used queries sha256 {recorded[:12]}; {args.queries} is {actual[:12]}", file=sys.stderr)
++        return 2
++    sizes = Counter(q["category"] for q in queries if q.get("category"))
++    if not sizes:
++        print("error: the queries have no categories", file=sys.stderr)
++        return 2
++
++    result = derive(baseline, dict(sizes), Path(args.baseline).name)
++    Path(args.out).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
++    overall = sum(len(result[m]) for m in MODES)
++    per_category = sum(len(c) for cats in result["by_category"].values() for c in cats.values())
++    print(f"Wrote {args.out}: {overall} overall + {per_category} per-category checks")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/eval/retrieval_eval.py b/eval/retrieval_eval.py
+index 84aa6ad..57cf5ab 100644
+--- a/eval/retrieval_eval.py
++++ b/eval/retrieval_eval.py
+@@ -214,23 +214,35 @@ def evaluate_by_category(
+ # Slack for floating-point noise only (0.8 computed as 4/5 must satisfy a 0.8 threshold).
+ _EPSILON = 1e-9
+ 
+-# mode -> metric -> minimum required value
+-Thresholds = dict[str, dict[str, float]]
+-
+-
+ class ThresholdError(DatasetError):
+     """The thresholds file is unusable."""
+ 
+ 
++@dataclass(frozen=True)
++class Thresholds:
++    """Minimum metrics: `overall` is {mode: {metric: min}}; `by_category` is {mode: {category: {metric: min}}}."""
++
++    overall: dict[str, dict[str, float]]
++    by_category: dict[str, dict[str, dict[str, float]]]
++    meta: dict
++
++    @property
++    def checks(self) -> int:
++        categories = sum(len(m) for cats in self.by_category.values() for m in cats.values())
++        return sum(len(m) for m in self.overall.values()) + categories
++
++
+ @dataclass(frozen=True)
+ class Failure:
+     mode: str
+     metric: str
+     actual: float
+     required: float
++    category: str | None = None
+ 
+     def __str__(self) -> str:
+-        return f"{self.mode} {self.metric}: {self.actual:.3f} < required {self.required:.3f}"
++        scope = f"{self.mode} {self.category}" if self.category else self.mode
++        return f"{scope} {self.metric}: {self.actual:.3f} < required {self.required:.3f}"
+ 
+ 
+ def metric_names(ks: Sequence[int] = KS) -> list[str]:
+@@ -243,11 +255,35 @@ def metric_values(result: ModeResult) -> dict[str, float]:
+     return values
+ 
+ 
+-def load_thresholds(path: str | Path, modes: Sequence[str], ks: Sequence[int] = KS) -> Thresholds:
+-    """Read minimum required metrics, as {mode: {metric: minimum}}.
++def _parse_metrics(label: str, wanted: object, valid_metrics: Sequence[str], problems: list[str]) -> dict[str, float]:
++    parsed: dict[str, float] = {}
++    if not isinstance(wanted, dict) or not wanted:
++        problems.append(f"{label}: must be a non-empty object mapping metric names to minimum values")
++        return parsed
++    for metric, value in wanted.items():
++        if metric not in valid_metrics:
++            problems.append(f"{label}: unknown metric {metric!r} (expected one of: {', '.join(valid_metrics)})")
++        elif isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
++            problems.append(f"{label} {metric}: threshold must be a number, got {value!r}")
++        elif not 0 <= value <= 1:
++            problems.append(f"{label} {metric}: threshold must be between 0 and 1, got {value!r}")
++        else:
++            parsed[metric] = float(value)
++    return parsed
++
++
++def load_thresholds(
++    path: str | Path, modes: Sequence[str], ks: Sequence[int] = KS, categories: Iterable[str] | None = None
++) -> Thresholds:
++    """Read minimum required metrics.
++
++        {"hybrid": {"recall@1": 0.8, "mrr": 0.85},
++         "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
++         "meta": {"dataset_sha256": "..."}}
+ 
+-    Example: {"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
+-    Modes and metrics that are not listed are not checked. Raises ThresholdError listing every problem.
++    Top-level modes give overall minimums; "by_category" gives per-category minimums for categories that exist in
++    the dataset; "meta" is free-form provenance (its fingerprints are checked against the run). Anything not listed
++    is not checked. Raises ThresholdError listing every problem.
+     """
+     try:
+         raw = Path(path).read_text(encoding="utf-8")
+@@ -259,36 +295,51 @@ def load_thresholds(path: str | Path, modes: Sequence[str], ks: Sequence[int] =
+         raise ThresholdError([f"not valid JSON: {exc.msg} (line {exc.lineno}, column {exc.colno})"]) from exc
+     if not isinstance(data, dict):
+         raise ThresholdError(['the top level must be an object like {"hybrid": {"recall@1": 0.8}}'])
+-    if not data:
+-        raise ThresholdError(["no thresholds defined; a gate that checks nothing is not allowed"])
+ 
++    known_categories = set(categories or ())
+     valid_metrics = metric_names(ks)
+     problems: list[str] = []
+-    result: Thresholds = {}
+-    for mode, wanted in data.items():
+-        if mode not in modes:
+-            problems.append(f"unknown mode {mode!r} (expected one of: {', '.join(modes)})")
+-            continue
+-        if not isinstance(wanted, dict) or not wanted:
+-            problems.append(f"{mode}: must be a non-empty object mapping metric names to minimum values")
+-            continue
+-        result[mode] = {}
+-        for metric, value in wanted.items():
+-            if metric not in valid_metrics:
+-                problems.append(f"{mode}: unknown metric {metric!r} (expected one of: {', '.join(valid_metrics)})")
+-            elif isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+-                problems.append(f"{mode} {metric}: threshold must be a number, got {value!r}")
+-            elif not 0 <= value <= 1:
+-                problems.append(f"{mode} {metric}: threshold must be between 0 and 1, got {value!r}")
++    overall: dict[str, dict[str, float]] = {}
++    by_category: dict[str, dict[str, dict[str, float]]] = {}
++    meta: dict = {}
++    for key, wanted in data.items():
++        if key == "meta":
++            if isinstance(wanted, dict):
++                meta = wanted
+             else:
+-                result[mode][metric] = float(value)
++                problems.append("meta: must be an object")
++        elif key == "by_category":
++            if not isinstance(wanted, dict) or not wanted:
++                problems.append("by_category: must be a non-empty object mapping modes to categories")
++                continue
++            for mode, cats in wanted.items():
++                if mode not in modes:
++                    problems.append(f"by_category: unknown mode {mode!r} (expected one of: {', '.join(modes)})")
++                elif not isinstance(cats, dict) or not cats:
++                    problems.append(f"by_category {mode}: must be a non-empty object mapping categories to metrics")
++                else:
++                    by_category[mode] = {}
++                    for category, metrics in cats.items():
++                        if category not in known_categories:
++                            known = ", ".join(sorted(known_categories)) or "none: the dataset has no categories"
++                            problems.append(f"by_category {mode}: unknown category {category!r} (dataset has: {known})")
++                            continue
++                        by_category[mode][category] = _parse_metrics(
++                            f"{mode} {category}", metrics, valid_metrics, problems
++                        )
++        elif key not in modes:
++            problems.append(f"unknown mode {key!r} (expected one of: {', '.join(modes)}, by_category, meta)")
++        else:
++            overall[key] = _parse_metrics(key, wanted, valid_metrics, problems)
++    if not problems and not overall and not by_category:
++        problems.append("no thresholds defined; a gate that checks nothing is not allowed")
+     if problems:
+         raise ThresholdError(problems)
+-    return result
++    return Thresholds(overall, by_category, meta)
+ 
+ 
+-def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) -> list[Failure]:
+-    """Every threshold the results fail to meet, ordered by mode then metric as listed in the file."""
++def check_thresholds(results: dict[str, ModeResult], thresholds: dict[str, dict[str, float]]) -> list[Failure]:
++    """Every overall threshold the results fail to meet, ordered by mode then metric as listed in the file."""
+     failures: list[Failure] = []
+     for mode, wanted in thresholds.items():
+         if mode not in results:
+@@ -300,8 +351,53 @@ def check_thresholds(results: dict[str, ModeResult], thresholds: Thresholds) ->
+     return failures
+ 
+ 
++def check_category_thresholds(
++    results: dict[str, dict[str, ModeResult]], thresholds: dict[str, dict[str, dict[str, float]]]
++) -> list[Failure]:
++    """Every per-category threshold the results fail to meet."""
++    failures: list[Failure] = []
++    for mode, categories in thresholds.items():
++        for category, wanted in categories.items():
++            if category not in results.get(mode, {}):
++                raise ValueError(f"thresholds reference {mode}/{category}, which was not evaluated")
++            actual = metric_values(results[mode][category])
++            for metric, required in wanted.items():
++                if actual[metric] < required - _EPSILON:
++                    failures.append(Failure(mode, metric, actual[metric], required, category))
++    return failures
++
++
++def check_gate(
++    results: dict[str, ModeResult],
++    category_results: dict[str, dict[str, ModeResult]] | None,
++    thresholds: Thresholds,
++) -> list[Failure]:
++    failures = check_thresholds(results, thresholds.overall)
++    if thresholds.by_category:
++        if category_results is None:
++            raise ValueError("category thresholds need per-category results")
++        failures += check_category_thresholds(category_results, thresholds.by_category)
++    return failures
++
++
+ def count_checks(thresholds: Thresholds) -> int:
+-    return sum(len(wanted) for wanted in thresholds.values())
++    return thresholds.checks
++
++
++def provenance_problems(meta: dict, info: dict) -> list[str]:
++    """Thresholds derived for one version of the benchmark must not gate another."""
++    problems = []
++    for key, actual, label in (
++        ("dataset_sha256", info["dataset"]["sha256"], "query file"),
++        ("corpus_sha256", info["corpus"]["sha256"], "corpus"),
++    ):
++        expected = meta.get(key)
++        if expected is not None and expected != actual:
++            problems.append(
++                f"thresholds were derived for a {label} with sha256 {str(expected)[:12]}, but this run uses "
++                f"{actual[:12]}; re-derive them with eval/derive_thresholds.py"
++            )
++    return problems
+ 
+ 
+ # -- reporting: misses and run record --------------------------------------------------------
+diff --git a/eval/run_eval.py b/eval/run_eval.py
+index 9c491d4..5c5218d 100644
+--- a/eval/run_eval.py
++++ b/eval/run_eval.py
+@@ -17,10 +17,15 @@ mode, every query whose first relevant document is not the top result.
+ 
+ Quality gate: pass `--thresholds FILE` to fail when a metric falls below its required minimum.
+ 
+-    {"hybrid": {"recall@1": 0.8, "mrr": 0.85}, "keyword": {"recall@5": 0.9}}
++    {"hybrid": {"recall@1": 0.8, "mrr": 0.85},
++     "by_category": {"hybrid": {"late_answer": {"recall@5": 0.9}}},
++     "meta": {"dataset_sha256": "...", "corpus_sha256": "..."}}
+ 
+-Metrics are recall@1, recall@5, recall@10, and mrr; modes are hybrid, vector, and keyword. Anything not listed
+-is reported but not checked. Without `--thresholds` the script only reports.
++Top-level modes set overall minimums; `by_category` sets minimums per query category; `meta` records which version
++of the benchmark the numbers were derived from, and the run refuses to gate a different version. Metrics are
++recall@1, recall@5, recall@10, and mrr; modes are hybrid, vector, and keyword. Anything not listed is reported but
++not checked. Without `--thresholds` the script only reports. `eval/derive_thresholds.py` builds a thresholds file
++from a recorded baseline run.
+ 
+ Exit status: 0 success (and every threshold met), 1 a threshold was not met, 2 invalid corpus, dataset, or
+ thresholds.
+@@ -39,8 +44,8 @@ from retrieval_eval import (
+     KS,
+     DatasetError,
+     ThresholdError,
++    check_gate,
+     check_indexed,
+-    check_thresholds,
+     count_checks,
+     environment_info,
+     evaluate,
+@@ -50,6 +55,7 @@ from retrieval_eval import (
+     load_dataset,
+     load_thresholds,
+     misses,
++    provenance_problems,
+     result_record,
+     trace_queries,
+ )
+@@ -129,7 +135,9 @@ def main() -> int:
+     thresholds = None
+     if args.thresholds:
+         try:
+-            thresholds = load_thresholds(args.thresholds, MODES, KS)
++            thresholds = load_thresholds(
++                args.thresholds, MODES, KS, categories={q.category for q in queries if q.category}
++            )
+         except ThresholdError as exc:
+             return _fail(f"invalid thresholds ({args.thresholds})", exc.problems)
+ 
+@@ -137,8 +145,13 @@ def main() -> int:
+     settings = Settings(model=args.model)
+     info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
+     print("\n".join(format_environment(info)) + "\n")
++    if thresholds is not None:
++        stale = provenance_problems(thresholds.meta, info)
++        if stale:
++            return _fail(f"thresholds do not match this benchmark ({args.thresholds})", stale)
+ 
+     record: dict = {"environment": info}
++    per_mode = None
+     with tempfile.TemporaryDirectory() as tmp:
+         store = Store(Path(tmp) / "eval.db")
+         try:
+@@ -160,7 +173,7 @@ def main() -> int:
+                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
+             record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
+             record["results"] = {mode: result_record(r) for mode, r in results.items()}
+-            if args.by_category or args.json:
++            if args.by_category or args.json or (thresholds is not None and thresholds.by_category):
+                 per_mode = _by_category(searcher, queries, root)
+                 record["by_category"] = {
+                     mode: {name: result_record(r) for name, r in groups.items()} for mode, groups in per_mode.items()
+@@ -176,7 +189,7 @@ def main() -> int:
+         finally:
+             store.close()
+ 
+-    failures = check_thresholds(results, thresholds) if thresholds is not None else []
++    failures = check_gate(results, per_mode, thresholds) if thresholds is not None else []
+     if thresholds is not None:
+         record["gate"] = {"checks": count_checks(thresholds), "failures": [str(f) for f in failures]}
+     if args.json:
+diff --git a/tests/test_eval.py b/tests/test_eval.py
+index a3f8968..2436979 100644
+--- a/tests/test_eval.py
++++ b/tests/test_eval.py
+@@ -21,6 +21,8 @@ from retrieval_eval import (  # noqa: E402
+     ModeResult,
+     Query,
+     ThresholdError,
++    check_category_thresholds,
++    check_gate,
+     check_indexed,
+     check_thresholds,
+     corpus_fingerprint,
+@@ -33,11 +35,14 @@ from retrieval_eval import (  # noqa: E402
+     load_dataset,
+     load_thresholds,
+     misses,
++    provenance_problems,
+     relative_path,
+     score_query,
+     trace_queries,
+ )
+ 
++import derive_thresholds  # noqa: E402
++
+ MODES = ("hybrid", "vector", "keyword")
+ 
+ 
+@@ -361,7 +366,8 @@ class ThresholdLoadingTests(EvalBase):
+ 
+     def test_valid_thresholds(self):
+         loaded = self.load({"hybrid": {"recall@1": 0.8, "mrr": 1}, "keyword": {"recall@10": 0}})
+-        self.assertEqual(loaded, {"hybrid": {"recall@1": 0.8, "mrr": 1.0}, "keyword": {"recall@10": 0.0}})
++        self.assertEqual(loaded.overall, {"hybrid": {"recall@1": 0.8, "mrr": 1.0}, "keyword": {"recall@10": 0.0}})
++        self.assertEqual((loaded.by_category, loaded.meta), ({}, {}))
+         self.assertEqual(count_checks(loaded), 3)
+ 
+     def test_unusable_files(self):
+@@ -429,6 +435,181 @@ class ThresholdCheckTests(unittest.TestCase):
+             check_thresholds({"hybrid": result()}, {"keyword": {"mrr": 0.5}})
+ 
+ 
++class CategoryThresholdTests(EvalBase):
++    CATS = ("exact", "late")
++
++    def write(self, content):
++        path = self.dir / "thresholds.json"
++        path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
++        return path
++
++    def load(self, content, categories=CATS):
++        return load_thresholds(self.write(content), MODES, categories=categories)
++
++    def rejected(self, content, categories=CATS):
++        with self.assertRaises(ThresholdError) as ctx:
++            self.load(content, categories)
++        return "\n".join(ctx.exception.problems)
++
++    def test_loads_floors_and_provenance(self):
++        loaded = self.load({
++            "hybrid": {"mrr": 0.5},
++            "by_category": {"hybrid": {"late": {"recall@5": 0.9, "mrr": 0.8}}, "vector": {"exact": {"mrr": 0.7}}},
++            "meta": {"dataset_sha256": "abc"},
++        })  # fmt: skip
++        self.assertEqual(loaded.by_category["hybrid"]["late"], {"recall@5": 0.9, "mrr": 0.8})
++        self.assertEqual(loaded.meta, {"dataset_sha256": "abc"})
++        self.assertEqual(loaded.checks, 4)
++
++    def test_category_only_file_is_valid(self):
++        self.assertEqual(self.load({"by_category": {"keyword": {"exact": {"mrr": 1.0}}}}).checks, 1)
++
++    def test_unknown_names_are_rejected(self):
++        self.assertIn("unknown category 'lat'", self.rejected({"by_category": {"hybrid": {"lat": {"mrr": 0.5}}}}))
++        self.assertIn("unknown mode 'hybird'", self.rejected({"by_category": {"hybird": {"late": {"mrr": 0.5}}}}))
++        bad_metric = {"by_category": {"hybrid": {"late": {"recall@3": 0.5}}}}
++        self.assertIn("unknown metric 'recall@3'", self.rejected(bad_metric))
++
++    def test_category_thresholds_need_a_dataset_with_categories(self):
++        found = self.rejected({"by_category": {"hybrid": {"late": {"mrr": 0.5}}}}, categories=())
++        self.assertIn("the dataset has no categories", found)
++
++    def test_bad_shapes_and_values(self):
++        self.assertIn("non-empty object", self.rejected({"by_category": {}}))
++        self.assertIn("non-empty object", self.rejected({"by_category": {"hybrid": {}}}))
++        self.assertIn("non-empty object", self.rejected({"by_category": {"hybrid": {"late": {}}}}))
++        self.assertIn("threshold must be between", self.rejected({"by_category": {"hybrid": {"late": {"mrr": 2}}}}))
++        self.assertIn("meta: must be an object", self.rejected({"hybrid": {"mrr": 0.5}, "meta": "x"}))
++        self.assertIn("checks nothing", self.rejected({"meta": {}}))
++
++    def test_category_failure_names_mode_category_and_metric(self):
++        results = {"hybrid": {"late": result(0.5, 0.8, 1.0, 0.6)}}
++        failures = check_category_thresholds(results, {"hybrid": {"late": {"recall@5": 0.9, "mrr": 0.6}}})
++        self.assertEqual(failures, [Failure("hybrid", "recall@5", 0.8, 0.9, "late")])
++        self.assertEqual(str(failures[0]), "hybrid late recall@5: 0.800 < required 0.900")
++
++    def test_a_category_collapse_is_invisible_to_overall_floors_but_caught_by_category_floors(self):
++        # 9 healthy categories and one collapsed: the overall number moves by only a little.
++        overall = {"hybrid": result(0.90, 0.95, 1.0, 0.92)}
++        by_category = {"hybrid": {"exact": result(1.0), "late": result(0.0, 0.0, 0.0, 0.0)}}
++        thresholds = self.load({
++            "hybrid": {"recall@1": 0.85, "mrr": 0.85},
++            "by_category": {"hybrid": {"late": {"mrr": 0.5}}},
++        })  # fmt: skip
++        self.assertEqual(check_thresholds(overall, thresholds.overall), [])
++        self.assertEqual([str(f) for f in check_gate(overall, by_category, thresholds)],
++                         ["hybrid late mrr: 0.000 < required 0.500"])  # fmt: skip
++
++    def test_gate_requires_category_results_when_category_floors_exist(self):
++        thresholds = self.load({"by_category": {"hybrid": {"late": {"mrr": 0.5}}}})
++        with self.assertRaises(ValueError):
++            check_gate({"hybrid": result()}, None, thresholds)
++        with self.assertRaises(ValueError):
++            check_category_thresholds({"hybrid": {}}, thresholds.by_category)
++
++    def test_provenance_must_match_when_recorded(self):
++        info = {"dataset": {"sha256": "d" * 64}, "corpus": {"sha256": "c" * 64}}
++        self.assertEqual(provenance_problems({}, info), [])
++        self.assertEqual(provenance_problems({"dataset_sha256": "d" * 64, "corpus_sha256": "c" * 64}, info), [])
++        found = provenance_problems({"dataset_sha256": "x" * 64, "corpus_sha256": "y" * 64}, info)
++        self.assertEqual(len(found), 2)
++        self.assertIn("re-derive", found[0])
++
++
++class DeriveThresholdsTests(EvalBase):
++    DATA = [
++        {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"},
++        {"query": "bicycle chain tire", "relevant": ["notes.md"], "category": "exact"},
++        {"query": "flour ratios", "relevant": ["recipes/notes.md"], "category": "late"},
++    ]
++
++    def run_script(self, *args):
++        script = REPO / "eval" / "derive_thresholds.py"
++        return subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, text=True, cwd=REPO)
++
++    def make_baseline(self):
++        queries = self.dataset(self.DATA)
++        baseline = self.dir / "baseline.json"
++        run = subprocess.run(
++            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(queries),
++             "--model", "hash", "--json", str(baseline)],
++            capture_output=True, text=True, cwd=REPO,
++        )  # fmt: skip
++        self.assertEqual(run.returncode, 0, run.stderr)
++        return queries, baseline
++
++    def test_floor_rounding_tolerates_float_noise(self):
++        self.assertEqual(derive_thresholds.floor2(0.77 - 0.02), 0.75)
++        self.assertEqual(derive_thresholds.floor2(0.8889 - 1 / 9), 0.77)
++        self.assertEqual(derive_thresholds.floor2(1 / 3), 0.33)
++        self.assertEqual(derive_thresholds.floor2(0.5), 0.5)
++        # 0.29 * 100 is 28.999999999999996, which a naive floor would turn into 0.28
++        self.assertEqual(derive_thresholds.floor2(0.29), 0.29)
++        self.assertEqual(derive_thresholds.floor2(0.57), 0.57)
++
++    def test_rule_and_zero_floors(self):
++        cell = {"recall@1": 0.9, "recall@5": 1.0, "mrr": 0.95}
++        weak = {"recall@1": 0.0, "recall@5": 0.1, "mrr": 0.5}  # both floors fall to 0: nothing to check
++        half = {"recall@1": 0.5, "recall@5": 0.3, "mrr": 0.9}  # recall@5 floor falls below 0, mrr stays
++        baseline = {
++            "environment": {"model": "m", "dataset": {"sha256": "d"}, "corpus": {"sha256": "c"}},
++            "results": {m: dict(cell) for m in MODES},
++            "by_category": {m: {"a": dict(cell), "b": dict(weak), "c": dict(half)} for m in MODES},
++        }
++        out = derive_thresholds.derive(baseline, {"a": 4, "b": 2, "c": 2}, "baseline.json")
++        self.assertEqual(out["hybrid"], {"recall@1": 0.88, "recall@5": 0.98, "mrr": 0.93})
++        self.assertEqual(out["by_category"]["hybrid"]["a"], {"recall@5": 0.75, "mrr": 0.7})
++        self.assertNotIn("b", out["by_category"]["hybrid"])
++        self.assertEqual(out["by_category"]["hybrid"]["c"], {"mrr": 0.4})
++        self.assertEqual(out["meta"]["dataset_sha256"], "d")
++
++    def test_derived_thresholds_pass_against_their_own_baseline(self):
++        queries, baseline = self.make_baseline()
++        out = self.dir / "derived.json"
++        made = self.run_script("--baseline", baseline, "--queries", queries, "--out", out)
++        self.assertEqual(made.returncode, 0, made.stderr)
++        self.assertIn("per-category checks", made.stdout)
++        run = subprocess.run(
++            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(queries),
++             "--model", "hash", "--thresholds", str(out)],
++            capture_output=True, text=True, cwd=REPO,
++        )  # fmt: skip
++        self.assertEqual(run.returncode, 0, run.stderr)
++        self.assertIn("Quality gate passed", run.stdout)
++
++    def test_stale_thresholds_are_refused_before_indexing(self):
++        queries, baseline = self.make_baseline()
++        out = self.dir / "derived.json"
++        self.assertEqual(self.run_script("--baseline", baseline, "--queries", queries, "--out", out).returncode, 0)
++        changed = self.dir / "changed.json"
++        changed.write_text(json.dumps(self.DATA[:2]), encoding="utf-8")
++        run = subprocess.run(
++            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(changed),
++             "--model", "hash", "--thresholds", str(out)],
++            capture_output=True, text=True, cwd=REPO,
++        )  # fmt: skip
++        self.assertEqual(run.returncode, 2)
++        self.assertIn("re-derive", run.stderr)
++        self.assertNotIn("Indexed", run.stdout)
++        self.assertNotIn("Traceback", run.stderr)
++
++    def test_mismatched_queries_and_unusable_baselines_are_rejected(self):
++        queries, baseline = self.make_baseline()
++        out = self.dir / "derived.json"
++        other = self.dir / "other.json"
++        other.write_text(json.dumps(self.DATA[:1]), encoding="utf-8")
++        found = self.run_script("--baseline", baseline, "--queries", other, "--out", out)
++        self.assertEqual(found.returncode, 2)
++        self.assertIn("baseline used queries", found.stderr)
++        broken = json.loads(baseline.read_text(encoding="utf-8"))
++        del broken["by_category"]
++        baseline.write_text(json.dumps(broken), encoding="utf-8")
++        found = self.run_script("--baseline", baseline, "--queries", queries, "--out", out)
++        self.assertEqual(found.returncode, 2)
++        self.assertNotIn("Traceback", found.stderr)
++        self.assertFalse(out.exists())
++
++
+ class GateAcceptanceTests(EvalBase):
+     """A clean run passes its own scores as thresholds; a deliberately broken ranker must fail them."""
+ 
+@@ -545,6 +726,42 @@ class CliTests(EvalBase):
+         record = json.loads(out.read_text(encoding="utf-8"))
+         self.assertEqual(len(record["gate"]["failures"]), 1)
+ 
++    def test_committed_hash_thresholds_pass_on_the_benchmark(self):
++        bench = REPO / "eval" / "benchmark"
++        gate = ["--thresholds", str(bench / "thresholds-hash.json")]
++        result = self.run_cli(bench / "queries.json", bench / "corpus", extra=gate)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertRegex(result.stdout, r"Quality gate passed \(\d+ checks\)")
++
++    def test_committed_thresholds_catch_a_broken_ranking(self):
++        bench = REPO / "eval" / "benchmark"
++        corpus = (bench / "corpus").resolve()
++        queries = load_dataset(bench / "queries.json", corpus)
++        thresholds = load_thresholds(
++            bench / "thresholds-hash.json", MODES, categories={q.category for q in queries if q.category}
++        )
++        store = Store(self.dir / "bench.db")
++        embedder = HashEmbedder()
++        index_paths(store, embedder, [corpus], Settings(model="hash"))
++
++        class Reversed:
++            def __init__(self, inner):
++                self.inner = inner
++
++            def search(self, *args, **kwargs):
++                return list(reversed(self.inner.search(*args, **kwargs)))
++
++        def gate(searcher):
++            overall = {m: evaluate(searcher, queries, corpus, m) for m in MODES}
++            by_category = {m: evaluate_by_category(searcher, queries, corpus, m) for m in MODES}
++            return check_gate(overall, by_category, thresholds)
++
++        self.assertEqual(gate(Searcher(store, embedder)), [])
++        failures = gate(Reversed(Searcher(store, embedder)))
++        self.assertTrue(any(f.category is None for f in failures), "overall floors should trip")
++        self.assertTrue(any(f.category == "late_answer" for f in failures), "category floors should trip")
++        store.close()
++
+     def test_shipped_dataset_is_valid(self):
+         result = self.run_cli(REPO / "eval" / "queries.json", corpus=REPO / "examples" / "corpus")
+         self.assertEqual(result.returncode, 0, result.stderr)

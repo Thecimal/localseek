@@ -1,0 +1,107 @@
+diff --git a/eval/retrieval_eval.py b/eval/retrieval_eval.py
+index 57cf5ab..088462d 100644
+--- a/eval/retrieval_eval.py
++++ b/eval/retrieval_eval.py
+@@ -14,6 +14,7 @@ import hashlib
+ import json
+ import math
+ import platform
++import re
+ import time
+ from importlib import metadata
+ from collections.abc import Iterable, Sequence
+@@ -65,11 +66,11 @@ def relative_path(path: str | Path, root: Path) -> str:
+ def _path_problem(value: object, root: Path) -> str | None:
+     if not isinstance(value, str) or not value.strip():
+         return "must be a non-empty string"
++    pure = PurePosixPath(value)
++    if pure.is_absolute() or re.match(r"[A-Za-z]:[\\/]", value) or value.startswith("\\\\"):
++        return "must be relative to the corpus, not absolute"  # POSIX, Windows drive, or UNC path
+     if "\\" in value:
+         return "use forward slashes"
+-    pure = PurePosixPath(value)
+-    if pure.is_absolute():
+-        return "must be relative to the corpus, not absolute"
+     if ".." in pure.parts:
+         return "must stay inside the corpus (no '..')"
+     if pure.as_posix() != value:
+diff --git a/src/localseek/cli.py b/src/localseek/cli.py
+index 29eef7f..9e22272 100644
+--- a/src/localseek/cli.py
++++ b/src/localseek/cli.py
+@@ -220,6 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
+ 
+ def main(argv: list[str] | None = None) -> int:
+     args = build_parser().parse_args(argv)
++    ctx = None
+     try:
+         ctx = Context(args)
+         return args.func(ctx, args)
+@@ -234,3 +235,7 @@ def main(argv: list[str] | None = None) -> int:
+         return 2
+     except KeyboardInterrupt:
+         return 130
++    finally:
++        # An open SQLite connection locks the database file on Windows until it is garbage-collected.
++        if ctx is not None:
++            ctx.store.close()
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index db8c16b..6ccb7cf 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -4,6 +4,7 @@ import json
+ import tempfile
+ import unittest
+ from pathlib import Path
++from unittest import mock
+ 
+ from helpers import write
+ from localseek.cli import main
+@@ -60,6 +61,33 @@ class CliTests(unittest.TestCase):
+         self.assertEqual(code, 1)
+         self.assertIn("localseek index", err)
+ 
++    def test_store_is_closed_after_every_command(self):
++        # Windows cannot delete a database file that still has an open connection.
++        import localseek.cli as cli
++
++        opened = []
++
++        class Tracking(cli.Store):
++            def __init__(self, *args, **kwargs):
++                super().__init__(*args, **kwargs)
++                self.closed = False
++                opened.append(self)
++
++            def close(self):
++                self.closed = True
++                super().close()
++
++        with mock.patch.object(cli, "Store", Tracking):
++            run(*self.base(), "index", str(self.docs))
++            run(*self.base(), "search", "guest")
++            run(*self.base(), "status")
++            code, _, _ = run("--db", str(self.dir / "empty.db"), "--model", "hash", "search", "x")
++            self.assertEqual(code, 1)  # error path: nothing indexed
++            with self.assertRaises(SystemExit):  # error path: invalid --since
++                run(*self.base(), "search", "--since", "yesterday", "x")
++        self.assertEqual(len(opened), 5)
++        self.assertTrue(all(store.closed for store in opened))
++
+     def test_bad_since_value(self):
+         run(*self.base(), "index", str(self.docs))
+         with self.assertRaises(SystemExit):
+diff --git a/tests/test_eval.py b/tests/test_eval.py
+index 2436979..106dfaf 100644
+--- a/tests/test_eval.py
++++ b/tests/test_eval.py
+@@ -120,6 +120,9 @@ class DatasetValidationTests(EvalBase):
+             "recipes/../../outside.md": "no '..'",
+             str(self.dir / "outside.md"): "not absolute",
+             "/notes.md": "not absolute",
++            "C:/Users/me/outside.md": "not absolute",
++            "C:\\Users\\me\\outside.md": "not absolute",
++            "\\\\server\\share\\outside.md": "not absolute",
+             "./notes.md": "normalized form",
+             "recipes//notes.md": "normalized form",
+             "recipes\\notes.md": "forward slashes",

@@ -1,0 +1,176 @@
+{
+  "hybrid": {
+    "recall@1": 0.6,
+    "recall@5": 0.81,
+    "mrr": 0.76
+  },
+  "vector": {
+    "recall@1": 0.36,
+    "recall@5": 0.63,
+    "mrr": 0.53
+  },
+  "keyword": {
+    "recall@1": 0.67,
+    "recall@5": 0.9,
+    "mrr": 0.83
+  },
+  "by_category": {
+    "hybrid": {
+      "exact_keyword": {
+        "recall@5": 0.9,
+        "mrr": 0.9
+      },
+      "technical_term": {
+        "recall@5": 0.9,
+        "mrr": 0.9
+      },
+      "rare_term": {
+        "recall@5": 0.87,
+        "mrr": 0.81
+      },
+      "semantic_paraphrase": {
+        "recall@5": 0.33,
+        "mrr": 0.17
+      },
+      "multi_document": {
+        "recall@5": 0.46,
+        "mrr": 0.81
+      },
+      "ambiguous": {
+        "recall@5": 0.75,
+        "mrr": 0.83
+      },
+      "long_question": {
+        "recall@5": 0.56,
+        "mrr": 0.54
+      },
+      "redundant_answer": {
+        "recall@5": 0.55,
+        "mrr": 0.48
+      },
+      "near_duplicate": {
+        "recall@5": 0.83,
+        "mrr": 0.62
+      },
+      "shared_filename": {
+        "recall@5": 0.87,
+        "mrr": 0.87
+      },
+      "late_answer": {
+        "recall@5": 0.88,
+        "mrr": 0.52
+      },
+      "similar_subject": {
+        "recall@5": 0.6,
+        "mrr": 0.5
+      }
+    },
+    "vector": {
+      "exact_keyword": {
+        "recall@5": 0.8,
+        "mrr": 0.63
+      },
+      "technical_term": {
+        "recall@5": 0.81,
+        "mrr": 0.77
+      },
+      "rare_term": {
+        "recall@5": 0.75,
+        "mrr": 0.53
+      },
+      "semantic_paraphrase": {
+        "recall@5": 0.16,
+        "mrr": 0.04
+      },
+      "multi_document": {
+        "recall@5": 0.32,
+        "mrr": 0.36
+      },
+      "ambiguous": {
+        "recall@5": 0.69,
+        "mrr": 0.7
+      },
+      "long_question": {
+        "recall@5": 0.25,
+        "mrr": 0.2
+      },
+      "redundant_answer": {
+        "recall@5": 0.33,
+        "mrr": 0.21
+      },
+      "near_duplicate": {
+        "recall@5": 0.5,
+        "mrr": 0.31
+      },
+      "shared_filename": {
+        "recall@5": 0.87,
+        "mrr": 0.68
+      },
+      "late_answer": {
+        "recall@5": 0.44,
+        "mrr": 0.28
+      },
+      "similar_subject": {
+        "recall@5": 0.4,
+        "mrr": 0.42
+      }
+    },
+    "keyword": {
+      "exact_keyword": {
+        "recall@5": 0.9,
+        "mrr": 0.9
+      },
+      "technical_term": {
+        "recall@5": 0.9,
+        "mrr": 0.9
+      },
+      "rare_term": {
+        "recall@5": 0.87,
+        "mrr": 0.87
+      },
+      "semantic_paraphrase": {
+        "recall@5": 0.41,
+        "mrr": 0.23
+      },
+      "multi_document": {
+        "recall@5": 0.81,
+        "mrr": 0.72
+      },
+      "ambiguous": {
+        "recall@5": 0.83,
+        "mrr": 0.83
+      },
+      "long_question": {
+        "recall@5": 0.87,
+        "mrr": 0.71
+      },
+      "redundant_answer": {
+        "recall@5": 0.77,
+        "mrr": 0.7
+      },
+      "near_duplicate": {
+        "recall@5": 0.83,
+        "mrr": 0.75
+      },
+      "shared_filename": {
+        "recall@5": 0.87,
+        "mrr": 0.87
+      },
+      "late_answer": {
+        "recall@5": 0.88,
+        "mrr": 0.73
+      },
+      "similar_subject": {
+        "recall@5": 0.8,
+        "mrr": 0.7
+      }
+    }
+  },
+  "meta": {
+    "derived_from": "hash.json",
+    "model": "hash",
+    "dataset_sha256": "8a99ed3d727d1a845925408a9384cc6661f1324ce8ff528dea41a172dc725362",
+    "corpus_sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6",
+    "rule": "overall: baseline - 0.02 (recall@1, recall@5, mrr); per category: baseline - 1/n (recall@5, mrr); rounded down to 2 decimals"
+  }
+}

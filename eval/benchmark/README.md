@@ -60,6 +60,52 @@ recall@1. In `redundant_answer` any one document suffices, so MRR is the fairer 
 near-duplicates (by text similarity), and a minimum number of queries per category. It runs no searches, so it cannot
 be satisfied by tuning the data to an algorithm.
 
+## Recording and comparing runs
+
+Every run prints its configuration first: model, chunk settings, library versions, and a content fingerprint of the
+corpus and of the query file. Fingerprints are SHA-256 over file contents with text line endings normalised, so the
+same benchmark hashes the same on Linux, macOS and Windows, and any edit to a document or query changes them. Two runs
+are comparable only if their fingerprints match.
+
+Fingerprints of benchmark v1: corpus `39c2e84b7a80`, queries `8a99ed3d727d` (first 12 hex digits).
+
+```bash
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json \
+    --by-category --show-misses --json run.json
+```
+
+`--show-misses` lists, for each mode, the queries whose first relevant document is not the top result, with the rank
+it reached and what ranked first. `--json` writes the same configuration plus every metric (overall, per category)
+for archiving or diffing; it records the corpus path as given on the command line, not an absolute path.
+
+## Quality gate and thresholds
+
+`thresholds-hash.json` is the gate CI runs on every pull request (Linux, macOS and Windows). It uses the hash
+embedder, so it protects the keyword search, the fusion and the indexing from regressions, but it says nothing about
+semantic quality. The semantic check is the manual "Model evaluation" workflow, which needs a thresholds file derived
+from a real-model baseline:
+
+```bash
+python eval/derive_thresholds.py --baseline eval/benchmark/baselines/bge-small-en-v1.5.json \
+    --queries eval/benchmark/queries.json --out eval/benchmark/thresholds-bge-small-en-v1.5.json
+```
+
+Thresholds are **derived by a fixed rule from a recorded baseline**, not chosen by hand:
+
+* Overall, per mode: `recall@1`, `recall@5` and `mrr` must stay above the baseline minus 0.02 (about two queries).
+* Per category, per mode: `recall@5` and `mrr` must stay above the baseline minus 1/n, one query's worth for that
+  category. `recall@1` is not gated per category, because categories with several relevant documents cannot reach 1.0.
+* Floors are rounded down to two decimals; a floor of zero checks nothing and is dropped.
+
+They are **regression floors, not quality goals**: they lock in what the baseline achieved, weak spots included, so
+improving search never fails the gate but making it worse does. The file records the fingerprints of the benchmark it
+was derived from, and a run against a different corpus or query file is refused until the thresholds are re-derived.
+Changing the benchmark therefore means: record a new baseline with `--json`, derive the thresholds, commit both.
+
+The hash gate was checked against a deliberately broken ranking (keyword results returned in reverse order): the clean
+run passes all its checks and the broken one fails with every affected row listed, while the untouched vector mode is
+correctly not reported.
+
 ## Rules for changing it
 
 1. Write documents and queries **before** looking at any retrieval results.

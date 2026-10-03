@@ -28,9 +28,13 @@ jobs:
         run: ruff check src tests eval
       - name: Test
         run: pytest -q
+      # Deterministic retrieval-quality gate: fails the build if search quality drops below the recorded floors.
+      # It uses the hashing embedder, so it measures the keyword machinery and fusion, not semantic quality; the
+      # real model is checked by the manual "Model evaluation" workflow.
+      - name: Retrieval quality gate
+        run: python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries.json --model hash --thresholds eval/benchmark/thresholds-hash.json --by-category
       - name: Update Badges
         uses: gaelgirodon/ci-badges-action@v1
         with:
-            gist-id: '54b6d06aa7fa3f825c99d9727994276a' # Replace with your full Gist ID
-            token: ${{ secrets.GIST_TOKEN }}z
-        
+          gist-id: '54b6d06aa7fa3f825c99d9727994276a'
+          token: ${{ secrets.GIST_TOKEN }}

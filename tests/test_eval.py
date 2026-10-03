@@ -21,16 +21,27 @@ from retrieval_eval import (  # noqa: E402
     ModeResult,
     Query,
     ThresholdError,
+    check_category_thresholds,
+    check_gate,
     check_indexed,
     check_thresholds,
+    corpus_fingerprint,
     count_checks,
+    dataset_fingerprint,
+    environment_info,
     evaluate,
     evaluate_by_category,
+    format_miss,
     load_dataset,
     load_thresholds,
+    misses,
+    provenance_problems,
     relative_path,
     score_query,
+    trace_queries,
 )
+
+import derive_thresholds  # noqa: E402
 
 MODES = ("hybrid", "vector", "keyword")
 
@@ -109,6 +120,9 @@ class DatasetValidationTests(EvalBase):
             "recipes/../../outside.md": "no '..'",
             str(self.dir / "outside.md"): "not absolute",
             "/notes.md": "not absolute",
+            "C:/Users/me/outside.md": "not absolute",
+            "C:\\Users\\me\\outside.md": "not absolute",
+            "\\\\server\\share\\outside.md": "not absolute",
             "./notes.md": "normalized form",
             "recipes//notes.md": "normalized form",
             "recipes\\notes.md": "forward slashes",
@@ -167,6 +181,99 @@ class CategoryTests(EvalBase):
         self.assertEqual(grouped["miss"].recall[10], 0.0)
         self.assertEqual(grouped["uncategorized"].mrr, 0.0)
         store.close()
+
+
+class FingerprintTests(EvalBase):
+    def copy_corpus(self, name, transform=lambda path, data: data):
+        target = self.dir / name
+        for path in self.root.rglob("*"):
+            if path.is_file():
+                out = target / path.relative_to(self.root)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_bytes(transform(path, path.read_bytes()))
+        return target.resolve()
+
+    def test_text_line_endings_do_not_change_the_fingerprint(self):
+        crlf = self.copy_corpus("crlf", lambda path, data: data.replace(b"\n", b"\r\n"))
+        self.assertEqual(corpus_fingerprint(self.root), corpus_fingerprint(crlf))
+        lf, windows = self.dir / "a.json", self.dir / "b.json"
+        lf.write_bytes(b'[\n  {"query": "x"}\n]\n')
+        windows.write_bytes(b'[\r\n  {"query": "x"}\r\n]\r\n')
+        self.assertEqual(dataset_fingerprint(lf), dataset_fingerprint(windows))
+
+    def test_content_name_and_new_files_change_the_fingerprint(self):
+        base = corpus_fingerprint(self.root)
+        edited = self.copy_corpus("edited", lambda p, d: d.replace(b"Feed", b"Skip") if p.name == "sourdough.md" else d)
+        self.assertNotEqual(base, corpus_fingerprint(edited))
+        renamed = self.copy_corpus("renamed")
+        (renamed / "work" / "notes.md").rename(renamed / "work" / "memo.md")
+        self.assertNotEqual(base, corpus_fingerprint(renamed))
+        added = self.copy_corpus("added")
+        write(added / "extra.md", "one more file")
+        self.assertNotEqual(base, corpus_fingerprint(added))
+
+    def test_binary_files_are_hashed_as_is(self):
+        one, two = self.copy_corpus("one"), self.copy_corpus("two")
+        (one / "doc.pdf").write_bytes(b"%PDF line\nbreak")
+        (two / "doc.pdf").write_bytes(b"%PDF line\r\nbreak")
+        self.assertNotEqual(corpus_fingerprint(one), corpus_fingerprint(two))
+
+    def test_environment_record_is_complete_and_has_no_absolute_corpus_path(self):
+        path = self.dataset([{"query": "q", "relevant": ["notes.md"]}])
+        queries = load_dataset(path, self.root)
+        info = environment_info("hash", Settings(model="hash"), path, "corpus", self.root, queries)
+        self.assertEqual(info["model"], "hash")
+        self.assertEqual((info["chunk_words"], info["overlap_words"]), (220, 30))
+        self.assertEqual(info["corpus"], {"path": "corpus", "files": 4, "sha256": corpus_fingerprint(self.root)})
+        self.assertEqual(info["dataset"]["queries"], 1)
+        self.assertEqual({"python", "localseek", "fastembed", "numpy"}, set(info["versions"]))
+        self.assertNotIn(str(self.dir), json.dumps(info["corpus"]))  # the corpus path is recorded as given
+
+
+class TraceTests(EvalBase):
+    def setUp(self):
+        super().setUp()
+        self.store = Store(self.dir / "i.db")
+        self.embedder = HashEmbedder()
+        index_paths(self.store, self.embedder, [self.root], Settings(model="hash"))
+        self.searcher = Searcher(self.store, self.embedder)
+
+    def tearDown(self):
+        self.store.close()
+        super().tearDown()
+
+    def trace(self, text, relevant):
+        return trace_queries(self.searcher, [Query(text, tuple(relevant), "demo")], self.root, "keyword")[0]
+
+    def test_top_hit_is_not_a_miss(self):
+        trace = self.trace("tax invoice deadlines", ["work/notes.md"])
+        self.assertEqual(trace.first_rank, 1)
+        self.assertEqual(misses([trace]), [])
+
+    def test_lower_rank_is_reported_with_its_position(self):
+        trace = self.trace("sourdough starter feeding schedule flour ratios", ["recipes/sourdough.md"])
+        self.assertEqual(trace.first_rank, 2)
+        self.assertEqual(trace.ranked[0], "recipes/notes.md")
+        self.assertEqual(misses([trace]), [trace])  # found, but not first, still counts as a miss
+        lines = "\n".join(format_miss(trace))
+        self.assertIn("rank 2", lines)
+        self.assertIn("top hit: recipes/notes.md", lines)
+        self.assertIn("wanted: recipes/sourdough.md", lines)
+
+    def test_absent_relevant_document_is_reported_as_not_in_top_k(self):
+        trace = self.trace("tax invoice deadlines", ["recipes/sourdough.md"])
+        self.assertIsNone(trace.first_rank)
+        self.assertEqual(misses([trace]), [trace])
+        self.assertIn("not in top 10", "\n".join(format_miss(trace)))
+
+    def test_query_with_no_results_is_handled(self):
+        trace = self.trace("zzzzqqqq", ["notes.md"])
+        self.assertEqual(trace.ranked, ())
+        self.assertIn("(no results)", "\n".join(format_miss(trace)))
+
+    def test_long_queries_are_truncated_in_the_report(self):
+        trace = self.trace("tax " * 80, ["work/notes.md"])
+        self.assertLess(len(format_miss(trace)[0]), 140)
 
 
 class IndexedCheckTests(EvalBase):
@@ -262,7 +369,8 @@ class ThresholdLoadingTests(EvalBase):
 
     def test_valid_thresholds(self):
         loaded = self.load({"hybrid": {"recall@1": 0.8, "mrr": 1}, "keyword": {"recall@10": 0}})
-        self.assertEqual(loaded, {"hybrid": {"recall@1": 0.8, "mrr": 1.0}, "keyword": {"recall@10": 0.0}})
+        self.assertEqual(loaded.overall, {"hybrid": {"recall@1": 0.8, "mrr": 1.0}, "keyword": {"recall@10": 0.0}})
+        self.assertEqual((loaded.by_category, loaded.meta), ({}, {}))
         self.assertEqual(count_checks(loaded), 3)
 
     def test_unusable_files(self):
@@ -328,6 +436,181 @@ class ThresholdCheckTests(unittest.TestCase):
     def test_threshold_for_unevaluated_mode_is_an_error(self):
         with self.assertRaises(ValueError):
             check_thresholds({"hybrid": result()}, {"keyword": {"mrr": 0.5}})
+
+
+class CategoryThresholdTests(EvalBase):
+    CATS = ("exact", "late")
+
+    def write(self, content):
+        path = self.dir / "thresholds.json"
+        path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
+        return path
+
+    def load(self, content, categories=CATS):
+        return load_thresholds(self.write(content), MODES, categories=categories)
+
+    def rejected(self, content, categories=CATS):
+        with self.assertRaises(ThresholdError) as ctx:
+            self.load(content, categories)
+        return "\n".join(ctx.exception.problems)
+
+    def test_loads_floors_and_provenance(self):
+        loaded = self.load({
+            "hybrid": {"mrr": 0.5},
+            "by_category": {"hybrid": {"late": {"recall@5": 0.9, "mrr": 0.8}}, "vector": {"exact": {"mrr": 0.7}}},
+            "meta": {"dataset_sha256": "abc"},
+        })  # fmt: skip
+        self.assertEqual(loaded.by_category["hybrid"]["late"], {"recall@5": 0.9, "mrr": 0.8})
+        self.assertEqual(loaded.meta, {"dataset_sha256": "abc"})
+        self.assertEqual(loaded.checks, 4)
+
+    def test_category_only_file_is_valid(self):
+        self.assertEqual(self.load({"by_category": {"keyword": {"exact": {"mrr": 1.0}}}}).checks, 1)
+
+    def test_unknown_names_are_rejected(self):
+        self.assertIn("unknown category 'lat'", self.rejected({"by_category": {"hybrid": {"lat": {"mrr": 0.5}}}}))
+        self.assertIn("unknown mode 'hybird'", self.rejected({"by_category": {"hybird": {"late": {"mrr": 0.5}}}}))
+        bad_metric = {"by_category": {"hybrid": {"late": {"recall@3": 0.5}}}}
+        self.assertIn("unknown metric 'recall@3'", self.rejected(bad_metric))
+
+    def test_category_thresholds_need_a_dataset_with_categories(self):
+        found = self.rejected({"by_category": {"hybrid": {"late": {"mrr": 0.5}}}}, categories=())
+        self.assertIn("the dataset has no categories", found)
+
+    def test_bad_shapes_and_values(self):
+        self.assertIn("non-empty object", self.rejected({"by_category": {}}))
+        self.assertIn("non-empty object", self.rejected({"by_category": {"hybrid": {}}}))
+        self.assertIn("non-empty object", self.rejected({"by_category": {"hybrid": {"late": {}}}}))
+        self.assertIn("threshold must be between", self.rejected({"by_category": {"hybrid": {"late": {"mrr": 2}}}}))
+        self.assertIn("meta: must be an object", self.rejected({"hybrid": {"mrr": 0.5}, "meta": "x"}))
+        self.assertIn("checks nothing", self.rejected({"meta": {}}))
+
+    def test_category_failure_names_mode_category_and_metric(self):
+        results = {"hybrid": {"late": result(0.5, 0.8, 1.0, 0.6)}}
+        failures = check_category_thresholds(results, {"hybrid": {"late": {"recall@5": 0.9, "mrr": 0.6}}})
+        self.assertEqual(failures, [Failure("hybrid", "recall@5", 0.8, 0.9, "late")])
+        self.assertEqual(str(failures[0]), "hybrid late recall@5: 0.800 < required 0.900")
+
+    def test_a_category_collapse_is_invisible_to_overall_floors_but_caught_by_category_floors(self):
+        # 9 healthy categories and one collapsed: the overall number moves by only a little.
+        overall = {"hybrid": result(0.90, 0.95, 1.0, 0.92)}
+        by_category = {"hybrid": {"exact": result(1.0), "late": result(0.0, 0.0, 0.0, 0.0)}}
+        thresholds = self.load({
+            "hybrid": {"recall@1": 0.85, "mrr": 0.85},
+            "by_category": {"hybrid": {"late": {"mrr": 0.5}}},
+        })  # fmt: skip
+        self.assertEqual(check_thresholds(overall, thresholds.overall), [])
+        self.assertEqual([str(f) for f in check_gate(overall, by_category, thresholds)],
+                         ["hybrid late mrr: 0.000 < required 0.500"])  # fmt: skip
+
+    def test_gate_requires_category_results_when_category_floors_exist(self):
+        thresholds = self.load({"by_category": {"hybrid": {"late": {"mrr": 0.5}}}})
+        with self.assertRaises(ValueError):
+            check_gate({"hybrid": result()}, None, thresholds)
+        with self.assertRaises(ValueError):
+            check_category_thresholds({"hybrid": {}}, thresholds.by_category)
+
+    def test_provenance_must_match_when_recorded(self):
+        info = {"dataset": {"sha256": "d" * 64}, "corpus": {"sha256": "c" * 64}}
+        self.assertEqual(provenance_problems({}, info), [])
+        self.assertEqual(provenance_problems({"dataset_sha256": "d" * 64, "corpus_sha256": "c" * 64}, info), [])
+        found = provenance_problems({"dataset_sha256": "x" * 64, "corpus_sha256": "y" * 64}, info)
+        self.assertEqual(len(found), 2)
+        self.assertIn("re-derive", found[0])
+
+
+class DeriveThresholdsTests(EvalBase):
+    DATA = [
+        {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"},
+        {"query": "bicycle chain tire", "relevant": ["notes.md"], "category": "exact"},
+        {"query": "flour ratios", "relevant": ["recipes/notes.md"], "category": "late"},
+    ]
+
+    def run_script(self, *args):
+        script = REPO / "eval" / "derive_thresholds.py"
+        return subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, text=True, cwd=REPO)
+
+    def make_baseline(self):
+        queries = self.dataset(self.DATA)
+        baseline = self.dir / "baseline.json"
+        run = subprocess.run(
+            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(queries),
+             "--model", "hash", "--json", str(baseline)],
+            capture_output=True, text=True, cwd=REPO,
+        )  # fmt: skip
+        self.assertEqual(run.returncode, 0, run.stderr)
+        return queries, baseline
+
+    def test_floor_rounding_tolerates_float_noise(self):
+        self.assertEqual(derive_thresholds.floor2(0.77 - 0.02), 0.75)
+        self.assertEqual(derive_thresholds.floor2(0.8889 - 1 / 9), 0.77)
+        self.assertEqual(derive_thresholds.floor2(1 / 3), 0.33)
+        self.assertEqual(derive_thresholds.floor2(0.5), 0.5)
+        # 0.29 * 100 is 28.999999999999996, which a naive floor would turn into 0.28
+        self.assertEqual(derive_thresholds.floor2(0.29), 0.29)
+        self.assertEqual(derive_thresholds.floor2(0.57), 0.57)
+
+    def test_rule_and_zero_floors(self):
+        cell = {"recall@1": 0.9, "recall@5": 1.0, "mrr": 0.95}
+        weak = {"recall@1": 0.0, "recall@5": 0.1, "mrr": 0.5}  # both floors fall to 0: nothing to check
+        half = {"recall@1": 0.5, "recall@5": 0.3, "mrr": 0.9}  # recall@5 floor falls below 0, mrr stays
+        baseline = {
+            "environment": {"model": "m", "dataset": {"sha256": "d"}, "corpus": {"sha256": "c"}},
+            "results": {m: dict(cell) for m in MODES},
+            "by_category": {m: {"a": dict(cell), "b": dict(weak), "c": dict(half)} for m in MODES},
+        }
+        out = derive_thresholds.derive(baseline, {"a": 4, "b": 2, "c": 2}, "baseline.json")
+        self.assertEqual(out["hybrid"], {"recall@1": 0.88, "recall@5": 0.98, "mrr": 0.93})
+        self.assertEqual(out["by_category"]["hybrid"]["a"], {"recall@5": 0.75, "mrr": 0.7})
+        self.assertNotIn("b", out["by_category"]["hybrid"])
+        self.assertEqual(out["by_category"]["hybrid"]["c"], {"mrr": 0.4})
+        self.assertEqual(out["meta"]["dataset_sha256"], "d")
+
+    def test_derived_thresholds_pass_against_their_own_baseline(self):
+        queries, baseline = self.make_baseline()
+        out = self.dir / "derived.json"
+        made = self.run_script("--baseline", baseline, "--queries", queries, "--out", out)
+        self.assertEqual(made.returncode, 0, made.stderr)
+        self.assertIn("per-category checks", made.stdout)
+        run = subprocess.run(
+            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(queries),
+             "--model", "hash", "--thresholds", str(out)],
+            capture_output=True, text=True, cwd=REPO,
+        )  # fmt: skip
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("Quality gate passed", run.stdout)
+
+    def test_stale_thresholds_are_refused_before_indexing(self):
+        queries, baseline = self.make_baseline()
+        out = self.dir / "derived.json"
+        self.assertEqual(self.run_script("--baseline", baseline, "--queries", queries, "--out", out).returncode, 0)
+        changed = self.dir / "changed.json"
+        changed.write_text(json.dumps(self.DATA[:2]), encoding="utf-8")
+        run = subprocess.run(
+            [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(self.root), "--queries", str(changed),
+             "--model", "hash", "--thresholds", str(out)],
+            capture_output=True, text=True, cwd=REPO,
+        )  # fmt: skip
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("re-derive", run.stderr)
+        self.assertNotIn("Indexed", run.stdout)
+        self.assertNotIn("Traceback", run.stderr)
+
+    def test_mismatched_queries_and_unusable_baselines_are_rejected(self):
+        queries, baseline = self.make_baseline()
+        out = self.dir / "derived.json"
+        other = self.dir / "other.json"
+        other.write_text(json.dumps(self.DATA[:1]), encoding="utf-8")
+        found = self.run_script("--baseline", baseline, "--queries", other, "--out", out)
+        self.assertEqual(found.returncode, 2)
+        self.assertIn("baseline used queries", found.stderr)
+        broken = json.loads(baseline.read_text(encoding="utf-8"))
+        del broken["by_category"]
+        baseline.write_text(json.dumps(broken), encoding="utf-8")
+        found = self.run_script("--baseline", baseline, "--queries", queries, "--out", out)
+        self.assertEqual(found.returncode, 2)
+        self.assertNotIn("Traceback", found.stderr)
+        self.assertFalse(out.exists())
 
 
 class GateAcceptanceTests(EvalBase):
@@ -404,6 +687,83 @@ class CliTests(EvalBase):
         self.assertIn("Indexed 62 files", result.stdout)
         for category in ("semantic_paraphrase", "late_answer", "near_duplicate"):
             self.assertIn(category, result.stdout)
+
+    def test_run_record_is_printed_first(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"]}]
+        result = self.run_cli(self.dataset(data))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        head = result.stdout.split("Indexed")[0]
+        for label in ("model:    hash", "chunking: 220 words, 30 overlap", "dataset:", "corpus:", "versions:"):
+            self.assertIn(label, head)
+        self.assertRegex(head, r"sha256 [0-9a-f]{12}")
+
+    def test_show_misses_lists_failures_per_mode(self):
+        data = [
+            {"query": "tax invoice deadlines", "relevant": ["work/notes.md"]},
+            {"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"], "category": "wrong"},
+        ]
+        result = self.run_cli(self.dataset(data), extra=["--show-misses"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[keyword] 1 of 2", result.stdout)
+        self.assertIn("not in top 10", result.stdout)
+        self.assertIn("wanted: recipes/sourdough.md", result.stdout)
+
+    def test_json_record_matches_the_printed_run(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"}]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"recall@1": 1.0}}, extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(record["environment"]["model"], "hash")
+        self.assertEqual(record["results"]["keyword"]["recall@1"], 1.0)
+        self.assertEqual(set(record["by_category"]["keyword"]), {"exact"})
+        self.assertEqual(record["gate"], {"checks": 1, "failures": []})
+        self.assertEqual(set(record["misses"]), {"hybrid", "vector", "keyword"})
+        self.assertIn(record["environment"]["corpus"]["sha256"][:12], result.stdout)
+
+    def test_json_records_gate_failures_and_still_exits_1(self):
+        data = [{"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"]}]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), thresholds={"keyword": {"mrr": 0.5}}, extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 1)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(len(record["gate"]["failures"]), 1)
+
+    def test_committed_hash_thresholds_pass_on_the_benchmark(self):
+        bench = REPO / "eval" / "benchmark"
+        gate = ["--thresholds", str(bench / "thresholds-hash.json")]
+        result = self.run_cli(bench / "queries.json", bench / "corpus", extra=gate)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertRegex(result.stdout, r"Quality gate passed \(\d+ checks\)")
+
+    def test_committed_thresholds_catch_a_broken_ranking(self):
+        bench = REPO / "eval" / "benchmark"
+        corpus = (bench / "corpus").resolve()
+        queries = load_dataset(bench / "queries.json", corpus)
+        thresholds = load_thresholds(
+            bench / "thresholds-hash.json", MODES, categories={q.category for q in queries if q.category}
+        )
+        store = Store(self.dir / "bench.db")
+        embedder = HashEmbedder()
+        index_paths(store, embedder, [corpus], Settings(model="hash"))
+
+        class Reversed:
+            def __init__(self, inner):
+                self.inner = inner
+
+            def search(self, *args, **kwargs):
+                return list(reversed(self.inner.search(*args, **kwargs)))
+
+        def gate(searcher):
+            overall = {m: evaluate(searcher, queries, corpus, m) for m in MODES}
+            by_category = {m: evaluate_by_category(searcher, queries, corpus, m) for m in MODES}
+            return check_gate(overall, by_category, thresholds)
+
+        self.assertEqual(gate(Searcher(store, embedder)), [])
+        failures = gate(Reversed(Searcher(store, embedder)))
+        self.assertTrue(any(f.category is None for f in failures), "overall floors should trip")
+        self.assertTrue(any(f.category == "late_answer" for f in failures), "category floors should trip")
+        store.close()
 
     def test_shipped_dataset_is_valid(self):
         result = self.run_cli(REPO / "eval" / "queries.json", corpus=REPO / "examples" / "corpus")

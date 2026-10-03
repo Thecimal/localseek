@@ -1,0 +1,503 @@
+{
+  "environment": {
+    "model": "BAAI/bge-small-en-v1.5",
+    "chunk_words": 220,
+    "overlap_words": 30,
+    "dataset": {
+      "path": "eval/benchmark/queries-v2.json",
+      "queries": 25,
+      "split": "dev",
+      "sha256": "e156b98f38fbfee5587198726c9e875d5193e45652aa19cab32f4ea1fd20593d"
+    },
+    "corpus": {
+      "path": "eval/benchmark/corpus",
+      "files": 62,
+      "sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6"
+    },
+    "versions": {
+      "python": "3.14.4",
+      "localseek": "0.1.0",
+      "fastembed": "0.8.1",
+      "numpy": "2.5.3"
+    },
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43"
+  },
+  "indexed": {
+    "files": 62,
+    "chunks": 80
+  },
+  "results": {
+    "hybrid": {
+      "recall@1": 0.4,
+      "recall@5": 0.8,
+      "recall@10": 0.88,
+      "mrr": 0.5413809523809524,
+      "latency_ms": 10.122384839924052
+    },
+    "vector": {
+      "recall@1": 0.6,
+      "recall@5": 0.92,
+      "recall@10": 0.96,
+      "mrr": 0.7337142857142857,
+      "latency_ms": 8.55879239999922
+    },
+    "keyword": {
+      "recall@1": 0.16,
+      "recall@5": 0.4,
+      "recall@10": 0.68,
+      "mrr": 0.29563492063492064,
+      "latency_ms": 1.8291469200630672
+    }
+  },
+  "by_category": {
+    "hybrid": {
+      "paraphrase": {
+        "recall@1": 0.4,
+        "recall@5": 0.8,
+        "recall@10": 0.88,
+        "mrr": 0.5413809523809524,
+        "latency_ms": 9.860514360043453
+      }
+    },
+    "vector": {
+      "paraphrase": {
+        "recall@1": 0.6,
+        "recall@5": 0.92,
+        "recall@10": 0.96,
+        "mrr": 0.7337142857142857,
+        "latency_ms": 8.491694399999687
+      }
+    },
+    "keyword": {
+      "paraphrase": {
+        "recall@1": 0.16,
+        "recall@5": 0.4,
+        "recall@10": 0.68,
+        "mrr": 0.29563492063492064,
+        "latency_ms": 1.7879543200251646
+      }
+    }
+  },
+  "misses": {
+    "hybrid": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "housing/addendum-2025.md"
+        ]
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "housing/addendum-2026.md"
+        ]
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "top_hit": "finance/pension-statement.pdf",
+        "relevant": [
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "work/q2/meeting-notes.md",
+        "relevant": [
+          "archive/tech/router-setup-old.md"
+        ]
+      },
+      {
+        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "top_hit": "housing/moving/checklist.md",
+        "relevant": [
+          "tech/migration/checklist.md"
+        ]
+      },
+      {
+        "query": "Why does my browser refuse a site's security credentials as outdated?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "tech/vpn-config.txt",
+        "relevant": [
+          "tech/ssl-errors.md"
+        ]
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "top_hit": "work/onboarding.md",
+        "relevant": [
+          "tech/python-env.md"
+        ]
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "top_hit": "work/q3/meeting-notes.md",
+        "relevant": [
+          "work/q2/meeting-notes.md"
+        ]
+      },
+      {
+        "query": "What credentials does a newcomer get for experimenting with the service?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "top_hit": "work/project-proposal.md",
+        "relevant": [
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "At which venue is the staff getaway scheduled?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "work/project-proposal.md",
+        "relevant": [
+          "work/offsite-agenda.html"
+        ]
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "travel/notes.md"
+        ]
+      },
+      {
+        "query": "At what hour do I fly back home?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "travel/flight-confirmation.pdf"
+        ]
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "top_hit": "health/dentist-appointment.md",
+        "relevant": [
+          "travel/hiking-alps.md"
+        ]
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "top_hit": "kitchen/pizza-dough.md",
+        "relevant": [
+          "kitchen/notes.md"
+        ]
+      },
+      {
+        "query": "What protective gear do I take for wet weather photography?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "hobbies/photo/checklist.md"
+        ]
+      }
+    ],
+    "vector": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "housing/addendum-2025.md"
+        ]
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "housing/addendum-2026.md"
+        ]
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "housing/moving/checklist.md",
+        "relevant": [
+          "archive/tech/router-setup-old.md"
+        ]
+      },
+      {
+        "query": "What threshold of failing requests should make me undo a release?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "tech/windows-errors.md",
+        "relevant": [
+          "tech/runbook-deploy.md"
+        ]
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "top_hit": "tech/migration/checklist.md",
+        "relevant": [
+          "tech/python-env.md"
+        ]
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "work/q3/meeting-notes.md",
+        "relevant": [
+          "work/q2/meeting-notes.md"
+        ]
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "travel/notes.md"
+        ]
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "hobbies/photo/checklist.md",
+        "relevant": [
+          "travel/hiking-alps.md"
+        ]
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "kitchen/pizza-dough.md",
+        "relevant": [
+          "kitchen/notes.md"
+        ]
+      }
+    ],
+    "keyword": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "housing/lease-agreement.md",
+        "relevant": [
+          "housing/addendum-2025.md"
+        ]
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "housing/addendum-2026.md"
+        ]
+      },
+      {
+        "query": "Who is coming to my place to fix the heating equipment and what time window did they give?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "top_hit": "finance/tax-notes-2024.md",
+        "relevant": [
+          "housing/landlord-email.txt"
+        ]
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "finance/2025/summary.txt"
+        ]
+      },
+      {
+        "query": "What is the hourly rate I charged the web design client?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "top_hit": "work/project-proposal.md",
+        "relevant": [
+          "finance/invoice-INV-2026-0412.docx"
+        ]
+      },
+      {
+        "query": "What did I pay for desks in a shared office space?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "finance/budget-2026.md",
+        "relevant": [
+          "finance/expense-report-q3.md"
+        ]
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "work/q2/meeting-notes.md",
+        "relevant": [
+          "archive/tech/router-setup-old.md"
+        ]
+      },
+      {
+        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "health/doctor-email.txt",
+        "relevant": [
+          "tech/migration/checklist.md"
+        ]
+      },
+      {
+        "query": "Why does my browser refuse a site's security credentials as outdated?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "top_hit": "housing/lease-agreement.md",
+        "relevant": [
+          "tech/ssl-errors.md"
+        ]
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "kitchen/oven-manual.txt",
+        "relevant": [
+          "tech/python-env.md"
+        ]
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "top_hit": "work/q3/meeting-notes.md",
+        "relevant": [
+          "work/q2/meeting-notes.md"
+        ]
+      },
+      {
+        "query": "What credentials does a newcomer get for experimenting with the service?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "tech/runbook-deploy.md",
+        "relevant": [
+          "work/onboarding.md"
+        ]
+      },
+      {
+        "query": "Which programming language am I hoping to pick up next year?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "top_hit": "travel/car-rental.txt",
+        "relevant": [
+          "work/performance-review.md"
+        ]
+      },
+      {
+        "query": "At which venue is the staff getaway scheduled?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "work/project-proposal.md",
+        "relevant": [
+          "work/offsite-agenda.html"
+        ]
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "travel/notes.md"
+        ]
+      },
+      {
+        "query": "At what hour do I fly back home?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "travel/hiking-alps.md",
+        "relevant": [
+          "travel/flight-confirmation.pdf"
+        ]
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "top_hit": "health/dentist-appointment.md",
+        "relevant": [
+          "travel/hiking-alps.md"
+        ]
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "kitchen/pizza-dough.md",
+        "relevant": [
+          "kitchen/notes.md"
+        ]
+      },
+      {
+        "query": "How long until the appliance reaches its set temperature?",
+        "category": "paraphrase",
+        "first_rank": 9,
+        "top_hit": "finance/mortgage-vs-rent.md",
+        "relevant": [
+          "kitchen/oven-manual.txt"
+        ]
+      },
+      {
+        "query": "How can I keep my nightshade plants from catching the mold?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "top_hit": "health/allergy-medication.txt",
+        "relevant": [
+          "hobbies/gardening.md"
+        ]
+      },
+      {
+        "query": "What protective gear do I take for wet weather photography?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "top_hit": "hobbies/gardening.md",
+        "relevant": [
+          "hobbies/photo/checklist.md"
+        ]
+      }
+    ]
+  }
+}

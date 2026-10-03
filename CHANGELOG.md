@@ -22,6 +22,9 @@
   from a recorded baseline by a documented rule. The benchmark ships `baselines/hash.json` and `thresholds-hash.json`.
 - CI: the pull-request workflow now runs the hash-embedder retrieval gate on every operating system, and a manual
   "Model evaluation" workflow runs the real model against thresholds derived from its baseline.
+- Eval: held-out paraphrase set `eval/benchmark/queries-v2.json` (61 questions, one per document, no shared content
+  words with their answers, fixed dev/test split by path hash) with a documented protocol for testing search changes,
+  and a `--split` option. The optional `split` field is validated and shown in the run header.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

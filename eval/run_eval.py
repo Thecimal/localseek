@@ -12,6 +12,9 @@ first relevant document. Use `--model hash` for a fast, lexical-only baseline th
 Every run starts by printing what it ran on: the model, chunk settings, library versions, and content hashes of
 the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics.
 
+Selecting: `--split NAME` keeps only queries whose optional `split` field matches (the held-out set uses
+dev and test).
+
 Reports: `--by-category` breaks results down by each query's optional `category` field. `--show-misses` lists, per
 mode, every query whose first relevant document is not the top result.
 
@@ -119,6 +122,7 @@ def main() -> int:
     parser.add_argument("--corpus", required=True)
     parser.add_argument("--queries", required=True)
     parser.add_argument("--model", default="BAAI/bge-small-en-v1.5")
+    parser.add_argument("--split", help="only use queries whose optional `split` field equals this (dev or test)")
     parser.add_argument("--by-category", action="store_true", help="also report metrics per query category")
     parser.add_argument("--show-misses", action="store_true", help="list queries whose first relevant hit isn't rank 1")
     parser.add_argument("--json", metavar="FILE", help="also write the run record and all metrics to FILE")
@@ -132,6 +136,12 @@ def main() -> int:
         queries = load_dataset(args.queries, root)
     except DatasetError as exc:
         return _fail(f"invalid evaluation dataset ({args.queries})", exc.problems)
+    if args.split:
+        available = sorted({q.split for q in queries if q.split})
+        queries = [q for q in queries if q.split == args.split]
+        if not queries:
+            known = ", ".join(available) or "none"
+            return _fail("no queries selected", [f"no query has split {args.split!r} (available: {known})"])
     thresholds = None
     if args.thresholds:
         try:
@@ -143,7 +153,7 @@ def main() -> int:
 
     embedder = get_embedder(args.model)
     settings = Settings(model=args.model)
-    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
+    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries, args.split)
     print("\n".join(format_environment(info)) + "\n")
     if thresholds is not None:
         stale = provenance_problems(thresholds.meta, info)

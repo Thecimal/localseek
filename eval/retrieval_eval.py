@@ -37,6 +37,7 @@ class Query:
     text: str
     relevant: tuple[str, ...]
     category: str | None = None
+    split: str | None = None
 
 
 @dataclass(frozen=True)
@@ -144,9 +145,12 @@ def load_dataset(path: str | Path, root: Path) -> list[Query]:
         category = item.get("category")
         if "category" in item and (not isinstance(category, str) or not category.strip()):
             problems.append(f"{label}: 'category' must be a non-empty string when present")
+        split = item.get("split")
+        if "split" in item and (not isinstance(split, str) or not split.strip()):
+            problems.append(f"{label}: 'split' must be a non-empty string when present")
 
         if len(problems) == before:
-            queries.append(Query(text.strip(), tuple(relevant), category))
+            queries.append(Query(text.strip(), tuple(relevant), category, split))
     if problems:
         raise DatasetError(problems)
     return queries
@@ -471,14 +475,25 @@ def _version(package: str) -> str:
 
 
 def environment_info(
-    model: str, settings, queries_path: str | Path, corpus_path: str | Path, root: Path, queries: Sequence[Query]
+    model: str,
+    settings,
+    queries_path: str | Path,
+    corpus_path: str | Path,
+    root: Path,
+    queries: Sequence[Query],
+    split: str | None = None,
 ) -> dict:
     """Everything needed to tell whether two runs are comparable."""
     return {
         "model": model,
         "chunk_words": settings.chunk_words,
         "overlap_words": settings.overlap_words,
-        "dataset": {"path": str(queries_path), "queries": len(queries), "sha256": dataset_fingerprint(queries_path)},
+        "dataset": {
+            "path": str(queries_path),
+            "queries": len(queries),
+            "split": split,
+            "sha256": dataset_fingerprint(queries_path),
+        },
         "corpus": {
             "path": str(corpus_path),
             "files": sum(1 for p in root.rglob("*") if p.is_file()),
@@ -494,12 +509,16 @@ def environment_info(
     }
 
 
+def _split_note(dataset: dict) -> str:
+    return ", split " + dataset["split"] if dataset.get("split") else ""
+
+
 def format_environment(info: dict) -> list[str]:
     v, d, c = info["versions"], info["dataset"], info["corpus"]
     return [
         f"model:    {info['model']}",
         f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
-        f"dataset:  {d['path']}  ({d['queries']} queries, sha256 {d['sha256'][:12]})",
+        f"dataset:  {d['path']}  ({d['queries']} queries{_split_note(d)}, sha256 {d['sha256'][:12]})",
         f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
         f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",
         f"platform: {info['platform']}",

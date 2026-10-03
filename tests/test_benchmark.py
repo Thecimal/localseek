@@ -5,7 +5,9 @@ composition (size, formats, shared names, near-duplicates, long documents, query
 relevance judgment is backed by an exact phrase from the document it names.
 """
 
+import hashlib
 import json
+import re
 import sys
 import unittest
 from collections import Counter, defaultdict
@@ -192,3 +194,79 @@ class BenchmarkTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# -- the held-out paraphrase set (queries-v2.json) -----------------------------------------------------------------
+
+QUERIES_V2 = BENCH / "queries-v2.json"
+STOPWORDS = {
+    "the", "and", "for", "are", "was", "were", "with", "that", "this", "from", "not", "but", "has", "have", "had",
+    "you", "your", "our", "can", "how", "what", "when", "where", "which", "who", "why", "does", "did", "any", "into",
+    "than", "then", "its", "there", "about", "would", "should", "will", "one", "all", "also", "may", "per", "too",
+    "very", "shouldn",
+}  # fmt: skip
+
+
+def content_words(text: str) -> set[str]:
+    """Alphabetic words of three letters or more that are not stopwords; numbers are deliberately ignored."""
+    return {w for w in re.findall(r"[a-z]+", text.lower()) if len(w) > 2 and w not in STOPWORDS}
+
+
+def split_for(path: str) -> str:
+    """Deterministic dev/test assignment from the first relevant path, so nobody chooses which queries are held out."""
+    return "dev" if int(hashlib.sha256(path.encode("utf-8")).hexdigest()[0], 16) % 2 == 0 else "test"
+
+
+class HeldOutSetTests(unittest.TestCase):
+    """Rules fixed before any search was run, so the set cannot be shaped by how an algorithm performs on it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = json.loads(QUERIES_V2.read_text(encoding="utf-8"))
+        cls.v1 = {norm(item["query"]) for item in json.loads(QUERIES.read_text(encoding="utf-8"))}
+        cls.text = {}
+        for path in sorted(p for p in CORPUS.rglob("*") if p.is_file()):
+            cls.text[path.relative_to(CORPUS).as_posix()] = norm(" ".join(s.text for s in extract(path)))
+
+    def test_loads_with_the_evaluator_validation(self):
+        queries = load_dataset(QUERIES_V2, CORPUS.resolve())
+        self.assertEqual(len(queries), len(self.raw))
+        self.assertEqual({q.category for q in queries}, {"paraphrase"})
+        self.assertTrue(all(q.split in {"dev", "test"} for q in queries))
+
+    def test_every_document_is_the_answer_to_at_least_one_question(self):
+        covered = {path for item in self.raw for path in item["relevant"]}
+        missing = sorted(set(self.text) - covered)
+        self.assertEqual(missing, [], "documents with no question: add one, do not skip hard ones")
+
+    def test_relevance_is_exactly_the_evidence_and_the_evidence_is_in_the_document(self):
+        for item in self.raw:
+            self.assertEqual(set(item["relevant"]), set(item["evidence"]), item["query"])
+            for path, phrase in item["evidence"].items():
+                self.assertIn(norm(phrase), self.text[path], f"{item['query']!r}: {path}")
+
+    def test_questions_share_no_content_word_with_their_evidence(self):
+        for item in self.raw:
+            for path, phrase in item["evidence"].items():
+                shared = content_words(item["query"]) & content_words(phrase)
+                self.assertEqual(shared, set(), f"{item['query']!r} repeats words from its answer in {path}")
+
+    def test_split_follows_the_hash_rule(self):
+        for item in self.raw:
+            self.assertEqual(item["split"], split_for(item["relevant"][0]), item["query"])
+
+    def test_both_splits_are_populated(self):
+        counts = Counter(item["split"] for item in self.raw)
+        self.assertGreaterEqual(counts["dev"], 20)
+        self.assertGreaterEqual(counts["test"], 20)
+
+    def test_questions_are_unique_and_new(self):
+        texts = [norm(item["query"]) for item in self.raw]
+        self.assertEqual(len(texts), len(set(texts)))
+        self.assertEqual(set(texts) & self.v1, set(), "a question repeats one from benchmark v1")
+
+    def test_the_rule_helpers_behave(self):
+        self.assertEqual(content_words("How do I fix the 2025 tax errors?"), {"fix", "tax", "errors"})
+        self.assertEqual(content_words("It is 42"), set())
+        self.assertTrue({split_for(name) for name in ("a.md", "b.md", "c.md", "d.md")} <= {"dev", "test"})
+        self.assertEqual(split_for("housing/notes.md"), split_for("housing/notes.md"))

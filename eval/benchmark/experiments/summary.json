@@ -1,0 +1,94 @@
+{
+  "model": "BAAI/bge-small-en-v1.5",
+  "selected": null,
+  "candidates": [
+    {
+      "id": "C0",
+      "tuning": "",
+      "order": 0,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.5413809523809524,
+      "dev_rule": false
+    },
+    {
+      "id": "C1",
+      "tuning": "rrf_k=20",
+      "order": 1,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.565047619047619,
+      "dev_rule": false
+    },
+    {
+      "id": "C2",
+      "tuning": "rrf_k=10",
+      "order": 2,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.5898253968253968,
+      "dev_rule": false
+    },
+    {
+      "id": "C3",
+      "tuning": "vector_weight=2",
+      "order": 3,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": false,
+        "hash": false
+      },
+      "mrr": 0.5757142857142857,
+      "dev_rule": false
+    },
+    {
+      "id": "C4",
+      "tuning": "keyword_limit=20",
+      "order": 4,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.5283809523809524,
+      "dev_rule": false
+    },
+    {
+      "id": "C5",
+      "tuning": "keyword_limit=10",
+      "order": 5,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.49955555555555553,
+      "dev_rule": false
+    },
+    {
+      "id": "C6",
+      "tuning": "drop_stopwords=true",
+      "order": 6,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.590047619047619,
+      "dev_rule": false
+    },
+    {
+      "id": "C7",
+      "tuning": "drop_stopwords=true,keyword_limit=20",
+      "order": 7,
+      "gates": {
+        "BAAI/bge-small-en-v1.5": true,
+        "hash": true
+      },
+      "mrr": 0.590047619047619,
+      "dev_rule": false
+    }
+  ]
+}

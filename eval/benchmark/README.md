@@ -128,6 +128,17 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
     --split dev --show-misses --json dev-run.json
 ```
 
+### Tools for experiments
+
+* `run_eval.py --tuning rrf_k=10,keyword_limit=20,...` runs hybrid search with experimental fusion settings
+  (`rrf_k`, `vector_weight`, `keyword_weight`, `keyword_limit`, `drop_stopwords`). The shipped defaults are unchanged,
+  a test checks that default search still reproduces the recorded hash baseline exactly, and the settings are printed
+  in the run header and saved by `--json`.
+* `compare_runs.py baseline.json candidate.json ...` tabulates runs and applies the numeric rule below. It refuses to
+  compare runs made with a different model, query file, split, corpus or chunk size.
+* `run_candidates.py` runs the whole pre-registered experiment in `experiments.md`: every candidate on the dev split
+  and on both v1 gates, then a single confirmation run on the test split for the one candidate it selects.
+
 ### Protocol for a change to search (fixed before the first experiment)
 
 A change to retrieval or fusion is accepted only if all three hold:

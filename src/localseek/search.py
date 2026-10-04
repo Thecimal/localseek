@@ -34,16 +34,37 @@ def query_terms(query: str) -> list[str]:
     return list(seen)[:32]
 
 
-def fts_query(query: str) -> str:
-    """Build a safe FTS5 query: every term quoted, joined with OR."""
-    return " OR ".join(f'"{t}"' for t in query_terms(query))
+# Common English function words. Used only when the keyword arm is asked to ignore them (see `drop_stopwords`).
+STOPWORDS = frozenset(
+    """
+    a about above after again all also am an and any are as at be because been before being below between
+    both but by can could did do does doing down during each few for from further had has have having he her
+    here hers him his how i if in into is it its just me more most my no nor not of off on once only or other
+    our out over own same she should so some such than that the their them then there these they this those
+    through to too under until up very was we were what when where which while who whom why will with would
+    you your
+    """.split()
+)
 
 
-def rrf(rankings: list[list[int]], k: int = 60) -> dict[int, float]:
+def fts_query(query: str, drop_stopwords: bool = False) -> str:
+    """Build a safe FTS5 query: every term quoted, joined with OR.
+
+    With `drop_stopwords`, function words are left out so they cannot match most of the index; a query made only of
+    function words keeps all of its terms rather than becoming empty.
+    """
+    terms = query_terms(query)
+    if drop_stopwords:
+        terms = [t for t in terms if t not in STOPWORDS] or terms
+    return " OR ".join(f'"{t}"' for t in terms)
+
+
+def rrf(rankings: list[list[int]], k: int = 60, weights: list[float] | None = None) -> dict[int, float]:
     scores: dict[int, float] = {}
-    for ranking in rankings:
+    for index, ranking in enumerate(rankings):
+        weight = 1.0 if weights is None else weights[index]
         for position, item in enumerate(ranking, start=1):
-            scores[item] = scores.get(item, 0.0) + 1.0 / (k + position)
+            scores[item] = scores.get(item, 0.0) + weight / (k + position)
     return scores
 
 
@@ -62,10 +83,37 @@ def make_snippet(text: str, terms: list[str], width: int = 280) -> str:
 
 
 class Searcher:
-    def __init__(self, store: Store, embedder: Embedder, rrf_k: int = 60) -> None:
+    """Hybrid searcher. The defaults are the shipped behaviour; the other options exist for evaluation experiments.
+
+    rrf_k: Reciprocal Rank Fusion constant. Smaller values make the top ranks of each arm count for more.
+    vector_weight, keyword_weight: multiply each arm's contribution to the fused score.
+    keyword_limit: only the first N keyword results take part in fusion (None means all, up to the pool).
+    drop_stopwords: the keyword arm ignores common English function words.
+    """
+
+    def __init__(
+        self,
+        store: Store,
+        embedder: Embedder,
+        rrf_k: int = 60,
+        vector_weight: float = 1.0,
+        keyword_weight: float = 1.0,
+        keyword_limit: int | None = None,
+        drop_stopwords: bool = False,
+    ) -> None:
+        if rrf_k < 1:
+            raise ValueError("rrf_k must be at least 1")
+        if not (0 < vector_weight < float("inf") and 0 < keyword_weight < float("inf")):
+            raise ValueError("weights must be positive and finite")
+        if keyword_limit is not None and keyword_limit < 1:
+            raise ValueError("keyword_limit must be at least 1")
         self.store = store
         self.embedder = embedder
         self.rrf_k = rrf_k
+        self.vector_weight = vector_weight
+        self.keyword_weight = keyword_weight
+        self.keyword_limit = keyword_limit
+        self.drop_stopwords = drop_stopwords
 
     def search(
         self,
@@ -86,20 +134,23 @@ class Searcher:
         if allowed is not None and not allowed:
             return []
 
-        rankings: list[list[int]] = []
-        active = 0
+        arms: list[tuple[list[int], float]] = []
+        total_weight = 0.0
         if mode in ("hybrid", "vector"):
-            active += 1
-            rankings.append(self._vector_rank(query, allowed, pool))
+            total_weight += self.vector_weight
+            arms.append((self._vector_rank(query, allowed, pool), self.vector_weight))
         if mode in ("hybrid", "keyword"):
-            active += 1
-            rankings.append(self._keyword_rank(query, allowed, pool))
-        rankings = [r for r in rankings if r]
-        if not rankings:
+            total_weight += self.keyword_weight
+            keyword = self._keyword_rank(query, allowed, pool)
+            if self.keyword_limit is not None:
+                keyword = keyword[: self.keyword_limit]
+            arms.append((keyword, self.keyword_weight))
+        arms = [(ranking, weight) for ranking, weight in arms if ranking]
+        if not arms:
             return []
 
-        fused = rrf(rankings, self.rrf_k)
-        best_possible = active / (self.rrf_k + 1)
+        fused = rrf([ranking for ranking, _ in arms], self.rrf_k, [weight for _, weight in arms])
+        best_possible = total_weight / (self.rrf_k + 1)
         ordered = sorted(fused, key=lambda c: (-fused[c], c))[:pool]
         rows = self.store.fetch_chunks(ordered)
 
@@ -145,7 +196,7 @@ class Searcher:
         return [int(ids[i]) for i in top if np.isfinite(sims[i])]
 
     def _keyword_rank(self, query: str, allowed: set[int] | None, pool: int) -> list[int]:
-        match = fts_query(query)
+        match = fts_query(query, self.drop_stopwords)
         if not match:
             return []
         fetch = pool * 5 if allowed is not None else pool

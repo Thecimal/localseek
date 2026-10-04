@@ -25,6 +25,11 @@
 - Eval: held-out paraphrase set `eval/benchmark/queries-v2.json` (61 questions, one per document, no shared content
   words with their answers, fixed dev/test split by path hash) with a documented protocol for testing search changes,
   and a `--split` option. The optional `split` field is validated and shown in the run header.
+- Search: `Searcher` accepts opt-in fusion options (`vector_weight`, `keyword_weight`, `keyword_limit`,
+  `drop_stopwords`, in addition to the existing `rrf_k`) for evaluation experiments. The defaults are the shipped
+  behaviour, which a test checks against the recorded baseline; nothing in the `localseek` command uses the options.
+- Eval: `--tuning` for run_eval, `compare_runs.py`, `run_candidates.py`, and the pre-registered fusion experiment in
+  `eval/benchmark/experiments.md` (candidates, decision rule and a single-use test split, fixed before any run).
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

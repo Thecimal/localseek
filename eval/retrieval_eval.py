@@ -405,6 +405,61 @@ def provenance_problems(meta: dict, info: dict) -> list[str]:
     return problems
 
 
+# -- search tuning (evaluation experiments) ------------------------------------------------------------------------
+
+
+class TuningError(DatasetError):
+    """The --tuning specification is unusable."""
+
+
+_TUNING_OPTIONS = {
+    "rrf_k": ("int, at least 1", lambda v: int(v), lambda v: v >= 1),
+    "vector_weight": ("number above 0", lambda v: float(v), lambda v: 0 < v < math.inf),
+    "keyword_weight": ("number above 0", lambda v: float(v), lambda v: 0 < v < math.inf),
+    "keyword_limit": ("int, at least 1", lambda v: int(v), lambda v: v >= 1),
+    "drop_stopwords": ("true or false", lambda v: {"true": True, "false": False}[v.lower()], lambda v: True),
+}
+
+
+def parse_tuning(spec: str | None) -> dict:
+    """Parse "rrf_k=10,vector_weight=2" into Searcher keyword arguments; None or "" means the shipped defaults."""
+    if not spec or not spec.strip():
+        return {}
+    tuning: dict = {}
+    seen: set[str] = set()
+    problems: list[str] = []
+    for part in spec.split(","):
+        name, separator, raw = (piece.strip() for piece in part.partition("="))
+        if not separator or not raw:
+            problems.append(f"{part.strip()!r}: expected name=value")
+        elif name not in _TUNING_OPTIONS:
+            problems.append(f"unknown option {name!r} (expected one of: {', '.join(_TUNING_OPTIONS)})")
+        elif name in seen:
+            problems.append(f"{name} is given more than once")
+        else:
+            seen.add(name)
+            description, convert, valid = _TUNING_OPTIONS[name]
+            try:
+                value = convert(raw)
+            except (ValueError, KeyError):
+                problems.append(f"{name}: {raw!r} is not valid ({description})")
+                continue
+            if valid(value):
+                tuning[name] = value
+            else:
+                problems.append(f"{name}: {raw!r} is not valid ({description})")
+    if problems:
+        raise TuningError(problems)
+    return tuning
+
+
+def format_tuning(tuning: dict) -> str:
+    def show(value) -> str:
+        return str(value).lower() if isinstance(value, bool) else str(value)
+
+    return ", ".join(f"{name}={show(value)}" for name, value in tuning.items())
+
+
 # -- reporting: misses and run record --------------------------------------------------------
 
 
@@ -482,10 +537,12 @@ def environment_info(
     root: Path,
     queries: Sequence[Query],
     split: str | None = None,
+    tuning: dict | None = None,
 ) -> dict:
     """Everything needed to tell whether two runs are comparable."""
     return {
         "model": model,
+        "tuning": dict(tuning or {}),
         "chunk_words": settings.chunk_words,
         "overlap_words": settings.overlap_words,
         "dataset": {
@@ -518,6 +575,7 @@ def format_environment(info: dict) -> list[str]:
     return [
         f"model:    {info['model']}",
         f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
+        *([f"tuning:   {format_tuning(info['tuning'])}"] if info.get("tuning") else []),
         f"dataset:  {d['path']}  ({d['queries']} queries{_split_note(d)}, sha256 {d['sha256'][:12]})",
         f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
         f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",

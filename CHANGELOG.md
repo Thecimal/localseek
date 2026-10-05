@@ -30,6 +30,9 @@
   behaviour, which a test checks against the recorded baseline; nothing in the `localseek` command uses the options.
 - Eval: `--tuning` for run_eval, `compare_runs.py`, `run_candidates.py`, and the pre-registered fusion experiment in
   `eval/benchmark/experiments.md` (candidates, decision rule and a single-use test split, fixed before any run).
+- Eval: `eval/benchmark/queries-v3.json` (v2 unchanged plus a second question for every document: 119 questions, 47 dev
+  and 72 test) with the same rules, an added check that no quote appears in an unlisted document, and
+  `eval/make_review_sheet.py` for independent review of the relevance judgments.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

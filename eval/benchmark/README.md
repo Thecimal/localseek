@@ -128,6 +128,32 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
     --split dev --show-misses --json dev-run.json
 ```
 
+### Larger set for new work (`queries-v3.json`)
+
+With only 25 dev questions, a change of one or two queries cannot be told from noise. `queries-v3.json` contains all
+61 questions of v2, **unchanged and first** (a test checks this), followed by 58 new ones: a second question for every
+document, about a **different fact** than its v2 question. It follows exactly the same rules as v2: no shared content
+word between a question and its quote, a quote for every judgment, and the same hash-based split. It gives 47 dev and
+72 test questions. Every v3 test check also runs on v2.
+
+* **Which file for what.** `queries-v2.json` stays frozen because the recorded baseline and the fusion experiment
+  point at its fingerprint (`e156b98f38fb`); use it only to reproduce them. New work should use `queries-v3.json`.
+* **The test split is still unused.** Neither v2's test questions nor the 47 new ones have been run, and the
+  single-use rule applies to the whole v3 test split. The 25 dev questions inherited from v2 were used to choose among
+  candidates in the first experiment; the 22 added dev questions are fresh.
+* **Evidence completeness.** For both sets a test checks that no quote appears in a document that is not listed as
+  relevant, so a relevant set cannot silently miss a duplicate.
+* **Independent review.** `make_review_sheet.py` writes a sheet listing each question with its judged documents and
+  quotes and two checkboxes, so someone other than the author can check the judgments without running any search.
+  Corrections that come out of a review change the question file, and therefore its fingerprint, so make them before
+  recording new baselines.
+
+```bash
+python eval/make_review_sheet.py --queries eval/benchmark/queries-v3.json --out review-sheet.md
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries-v3.json \
+    --split dev --show-misses --json eval/benchmark/baselines/bge-v3-dev.json
+```
+
 ### Tools for experiments
 
 * `run_eval.py --tuning rrf_k=10,keyword_limit=20,...` runs hybrid search with experimental fusion settings

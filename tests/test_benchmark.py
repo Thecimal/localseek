@@ -217,19 +217,25 @@ def split_for(path: str) -> str:
     return "dev" if int(hashlib.sha256(path.encode("utf-8")).hexdigest()[0], 16) % 2 == 0 else "test"
 
 
+QUERIES_V3 = BENCH / "queries-v3.json"
+
+
 class HeldOutSetTests(unittest.TestCase):
     """Rules fixed before any search was run, so the set cannot be shaped by how an algorithm performs on it."""
 
+    FILE = QUERIES_V2
+    MIN_PER_SPLIT = 20
+
     @classmethod
     def setUpClass(cls):
-        cls.raw = json.loads(QUERIES_V2.read_text(encoding="utf-8"))
+        cls.raw = json.loads(cls.FILE.read_text(encoding="utf-8"))
         cls.v1 = {norm(item["query"]) for item in json.loads(QUERIES.read_text(encoding="utf-8"))}
         cls.text = {}
         for path in sorted(p for p in CORPUS.rglob("*") if p.is_file()):
             cls.text[path.relative_to(CORPUS).as_posix()] = norm(" ".join(s.text for s in extract(path)))
 
     def test_loads_with_the_evaluator_validation(self):
-        queries = load_dataset(QUERIES_V2, CORPUS.resolve())
+        queries = load_dataset(self.FILE, CORPUS.resolve())
         self.assertEqual(len(queries), len(self.raw))
         self.assertEqual({q.category for q in queries}, {"paraphrase"})
         self.assertTrue(all(q.split in {"dev", "test"} for q in queries))
@@ -251,14 +257,21 @@ class HeldOutSetTests(unittest.TestCase):
                 shared = content_words(item["query"]) & content_words(phrase)
                 self.assertEqual(shared, set(), f"{item['query']!r} repeats words from its answer in {path}")
 
+    def test_evidence_does_not_appear_in_documents_that_are_not_listed_as_relevant(self):
+        for item in self.raw:
+            for phrase in item["evidence"].values():
+                holders = {path for path, text in self.text.items() if norm(phrase) in text}
+                message = f"{item['query']!r}: {phrase!r} is also in {holders}"
+                self.assertLessEqual(holders, set(item["relevant"]), message)
+
     def test_split_follows_the_hash_rule(self):
         for item in self.raw:
             self.assertEqual(item["split"], split_for(item["relevant"][0]), item["query"])
 
     def test_both_splits_are_populated(self):
         counts = Counter(item["split"] for item in self.raw)
-        self.assertGreaterEqual(counts["dev"], 20)
-        self.assertGreaterEqual(counts["test"], 20)
+        self.assertGreaterEqual(counts["dev"], self.MIN_PER_SPLIT)
+        self.assertGreaterEqual(counts["test"], self.MIN_PER_SPLIT)
 
     def test_questions_are_unique_and_new(self):
         texts = [norm(item["query"]) for item in self.raw]
@@ -270,3 +283,30 @@ class HeldOutSetTests(unittest.TestCase):
         self.assertEqual(content_words("It is 42"), set())
         self.assertTrue({split_for(name) for name in ("a.md", "b.md", "c.md", "d.md")} <= {"dev", "test"})
         self.assertEqual(split_for("housing/notes.md"), split_for("housing/notes.md"))
+
+
+class HeldOutSetV3Tests(HeldOutSetTests):
+    """v3 is v2 plus a second question for every document; it must satisfy every rule v2 does."""
+
+    FILE = QUERIES_V3
+    MIN_PER_SPLIT = 40
+
+    def test_v2_is_contained_unchanged_and_first(self):
+        v2 = json.loads(QUERIES_V2.read_text(encoding="utf-8"))
+        self.assertEqual(self.raw[: len(v2)], v2)
+
+    def test_every_document_has_a_second_question_about_a_different_fact(self):
+        v2 = json.loads(QUERIES_V2.read_text(encoding="utf-8"))
+        old = {}
+        for item in v2:
+            for path, phrase in item["evidence"].items():
+                old.setdefault(path, []).append(norm(phrase))
+        fresh = {}
+        for item in self.raw[len(v2) :]:
+            for path, phrase in item["evidence"].items():
+                fresh.setdefault(path, []).append(norm(phrase))
+        self.assertEqual(sorted(set(self.text) - set(fresh)), [], "documents without a new question")
+        for path, phrases in fresh.items():
+            for new in phrases:
+                for earlier in old.get(path, []):
+                    self.assertFalse(new in earlier or earlier in new, f"{path}: {new!r} repeats the fact {earlier!r}")

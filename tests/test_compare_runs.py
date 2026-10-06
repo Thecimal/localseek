@@ -231,6 +231,23 @@ class CliTests(unittest.TestCase):
         self.assertIn("The vector arm against hybrid inside each run", result.stdout)
         self.assertIn("MRR difference [95% CI]", result.stdout)
 
+    def test_a_single_run_can_be_compared_with_one_of_its_own_arms(self):
+        hybrid = [(0, 1, 0.5)] * 8 + [(1, 1, 1.0)] * 2
+        vector = [(1, 1, 1.0)] * 10
+        only = self.save("only.json", with_queries(run(), hybrid, vector))
+        result = self.compare(only, "--versus-arm", "vector")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("The vector arm against hybrid inside each run", result.stdout)
+        self.assertIn("8/0/2", result.stdout)  # vector better on eight questions, worse on none, same on two
+        self.assertNotIn("Paired comparison with the baseline", result.stdout)
+
+    def test_nothing_to_compare_is_a_usage_error(self):
+        only = self.save("only.json", with_queries(run(), [(1, 1, 1.0)]))
+        result = self.compare(only)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--versus-arm", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_older_records_skip_the_paired_section_with_a_note(self):
         base = self.save("base.json", run())
         other = self.save("other.json", run(0.5, mrr=0.6))

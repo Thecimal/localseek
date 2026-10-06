@@ -1,6 +1,7 @@
 """Compare saved evaluation runs against a baseline and apply the pre-registered dev rule mechanically.
 
     python eval/compare_runs.py baseline.json candidate1.json candidate2.json ...
+    python eval/compare_runs.py run.json --versus-arm vector
 
 Each file is the output of `run_eval.py --json`. The first file is the baseline. Runs are only compared if they used
 the same model, query file, split, corpus and chunk settings; anything else exits with status 2.
@@ -148,11 +149,13 @@ def describe(run: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("baseline")
-    parser.add_argument("candidates", nargs="+")
+    parser.add_argument("candidates", nargs="*", help="runs to compare with the baseline (optional with --versus-arm)")
     parser.add_argument("--rule", choices=("dev", "test"), default="dev", help="which pre-registered rule to apply")
     parser.add_argument("--versus-arm", choices=("vector", "keyword"),
                         help="also compare hybrid with this arm inside each run (paired, per question)")
     args = parser.parse_args()
+    if not args.candidates and not args.versus_arm:
+        parser.error("give at least one candidate run, or --versus-arm to compare hybrid with an arm inside one run")
 
     runs = {}
     try:

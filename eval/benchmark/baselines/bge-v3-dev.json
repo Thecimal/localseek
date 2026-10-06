@@ -33,22 +33,1299 @@
       "recall@5": 0.7021276595744681,
       "recall@10": 0.8297872340425532,
       "mrr": 0.5327338736913205,
-      "latency_ms": 11.741336638496772
+      "latency_ms": 9.910845595902385
     },
     "vector": {
       "recall@1": 0.574468085106383,
       "recall@5": 0.9148936170212766,
       "recall@10": 0.9787234042553191,
       "mrr": 0.7186423505572442,
-      "latency_ms": 10.176875701909786
+      "latency_ms": 8.516315595888374
     },
     "keyword": {
       "recall@1": 0.2127659574468085,
       "recall@5": 0.40425531914893614,
       "recall@10": 0.6170212765957447,
       "mrr": 0.3210824045930429,
-      "latency_ms": 2.19993334061694
+      "latency_ms": 1.8742487235168153
     }
+  },
+  "per_query": {
+    "hybrid": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "Who is coming to my place to fix the heating equipment and what time window did they give?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.2
+      },
+      {
+        "query": "What is the hourly rate I charged the web design client?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What did I pay for desks in a shared office space?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What threshold of failing requests should make me undo a release?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What should I reduce when the tunnel hangs on cellular data?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.2
+      },
+      {
+        "query": "Why does my browser refuse a site's security credentials as outdated?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "What credentials does a newcomer get for experimenting with the service?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "Which programming language am I hoping to pick up next year?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "At which venue is the staff getaway scheduled?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "At what hour do I fly back home?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.2
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.125
+      },
+      {
+        "query": "How wet should the dough for a flatbread with toppings be?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which seasoning amount works for shredded cabbage?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long until the appliance reaches its set temperature?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How can I keep my nightshade plants from catching the mold?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What protective gear do I take for wet weather photography?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Is there a free place to leave my car at the building?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.125
+      },
+      {
+        "query": "Must somebody be present to open the door for the repairman?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "How much did food and household supplies cost in 2025?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long does the client have to settle the bill?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What was the overall sum of my third-quarter outlays?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How slow must responses be before the on-call person is paged for speed?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What interval should the connection ping to stay alive through the mobile operator's address translation?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What security step comes last after moving to the new manager?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What typically makes a browser distrust who issued a site's credentials?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which tool switches between different language releases?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How often should we meet the payment company in the interim?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What are the tasks on the very first morning of a new hire?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.125
+      },
+      {
+        "query": "What do colleagues appreciate about how I behave in a crisis?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Is there a single ticket for public transport that pays off on a longer stay?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "At what time do I land in Portugal?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Can I pay for the mountain lodge with plastic?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What kind of container suits the fermenting culture?",
+        "category": "paraphrase",
+        "first_rank": 9,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.1111111111111111
+      },
+      {
+        "query": "How hot should the oven be for flatbread?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which materials should I keep away from the acidic brine?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Who has to fix the appliance when the fault code keeps coming back?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How should I arrange the seedlings to reduce humidity?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How many power cells should be ready before heading out to take pictures?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      }
+    ],
+    "vector": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "Who is coming to my place to fix the heating equipment and what time window did they give?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "What is the hourly rate I charged the web design client?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What did I pay for desks in a shared office space?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "What threshold of failing requests should make me undo a release?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What should I reduce when the tunnel hangs on cellular data?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Why does my browser refuse a site's security credentials as outdated?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.2
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What credentials does a newcomer get for experimenting with the service?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which programming language am I hoping to pick up next year?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "At which venue is the staff getaway scheduled?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "At what hour do I fly back home?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "How wet should the dough for a flatbread with toppings be?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which seasoning amount works for shredded cabbage?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long until the appliance reaches its set temperature?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How can I keep my nightshade plants from catching the mold?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What protective gear do I take for wet weather photography?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Is there a free place to leave my car at the building?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "Must somebody be present to open the door for the repairman?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How much did food and household supplies cost in 2025?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long does the client have to settle the bill?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What was the overall sum of my third-quarter outlays?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "How slow must responses be before the on-call person is paged for speed?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What interval should the connection ping to stay alive through the mobile operator's address translation?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What security step comes last after moving to the new manager?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What typically makes a browser distrust who issued a site's credentials?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "Which tool switches between different language releases?",
+        "category": "paraphrase",
+        "first_rank": 10,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.1
+      },
+      {
+        "query": "How often should we meet the payment company in the interim?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What are the tasks on the very first morning of a new hire?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.16666666666666666
+      },
+      {
+        "query": "What do colleagues appreciate about how I behave in a crisis?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Is there a single ticket for public transport that pays off on a longer stay?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "At what time do I land in Portugal?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Can I pay for the mountain lodge with plastic?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What kind of container suits the fermenting culture?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "How hot should the oven be for flatbread?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which materials should I keep away from the acidic brine?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Who has to fix the appliance when the fault code keeps coming back?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "How should I arrange the seedlings to reduce humidity?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "How many power cells should be ready before heading out to take pictures?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      }
+    ],
+    "keyword": [
+      {
+        "query": "What did my accommodation cost per month beginning in 2025?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "What did my accommodation cost per month beginning in 2026?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "Who is coming to my place to fix the heating equipment and what time window did they give?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.16666666666666666
+      },
+      {
+        "query": "How much money did I set aside during 2025?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "What is the hourly rate I charged the web design client?",
+        "category": "paraphrase",
+        "first_rank": 4,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.25
+      },
+      {
+        "query": "What did I pay for desks in a shared office space?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What passphrase did visitors need on the previous provider's equipment?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What threshold of failing requests should make me undo a release?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What should I reduce when the tunnel hangs on cellular data?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Why does my browser refuse a site's security credentials as outdated?",
+        "category": "paraphrase",
+        "first_rank": 8,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.125
+      },
+      {
+        "query": "How do I switch into the isolated project sandbox?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "Why was the portal release pushed from spring to summer?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "What credentials does a newcomer get for experimenting with the service?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Which programming language am I hoping to pick up next year?",
+        "category": "paraphrase",
+        "first_rank": 3,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.3333333333333333
+      },
+      {
+        "query": "At which venue is the staff getaway scheduled?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How do I get to the excursion town outside the city?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "At what hour do I fly back home?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "What should I bring to see in the dark?",
+        "category": "paraphrase",
+        "first_rank": 7,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.14285714285714285
+      },
+      {
+        "query": "What signs show my wild-yeast culture is strong enough for baking?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How wet should the dough for a flatbread with toppings be?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which seasoning amount works for shredded cabbage?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long until the appliance reaches its set temperature?",
+        "category": "paraphrase",
+        "first_rank": 9,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.1111111111111111
+      },
+      {
+        "query": "How can I keep my nightshade plants from catching the mold?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What protective gear do I take for wet weather photography?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Is there a free place to leave my car at the building?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Must somebody be present to open the door for the repairman?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How much did food and household supplies cost in 2025?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How long does the client have to settle the bill?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.16666666666666666
+      },
+      {
+        "query": "What was the overall sum of my third-quarter outlays?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How slow must responses be before the on-call person is paged for speed?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What interval should the connection ping to stay alive through the mobile operator's address translation?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "What security step comes last after moving to the new manager?",
+        "category": "paraphrase",
+        "first_rank": 2,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.5
+      },
+      {
+        "query": "What typically makes a browser distrust who issued a site's credentials?",
+        "category": "paraphrase",
+        "first_rank": 5,
+        "recall@1": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 0.2
+      },
+      {
+        "query": "Which tool switches between different language releases?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How often should we meet the payment company in the interim?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.16666666666666666
+      },
+      {
+        "query": "What are the tasks on the very first morning of a new hire?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "What do colleagues appreciate about how I behave in a crisis?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Is there a single ticket for public transport that pays off on a longer stay?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "At what time do I land in Portugal?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "Can I pay for the mountain lodge with plastic?",
+        "category": "paraphrase",
+        "first_rank": 6,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "rr": 0.16666666666666666
+      },
+      {
+        "query": "What kind of container suits the fermenting culture?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How hot should the oven be for flatbread?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Which materials should I keep away from the acidic brine?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "Who has to fix the appliance when the fault code keeps coming back?",
+        "category": "paraphrase",
+        "first_rank": 1,
+        "recall@1": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "rr": 1.0
+      },
+      {
+        "query": "How should I arrange the seedlings to reduce humidity?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      },
+      {
+        "query": "How many power cells should be ready before heading out to take pictures?",
+        "category": "paraphrase",
+        "first_rank": null,
+        "recall@1": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "rr": 0.0
+      }
+    ]
   },
   "by_category": {
     "hybrid": {
@@ -57,7 +1334,7 @@
         "recall@5": 0.7021276595744681,
         "recall@10": 0.8297872340425532,
         "mrr": 0.5327338736913205,
-        "latency_ms": 11.263130489362782
+        "latency_ms": 9.995851212768182
       }
     },
     "vector": {
@@ -66,7 +1343,7 @@
         "recall@5": 0.9148936170212766,
         "recall@10": 0.9787234042553191,
         "mrr": 0.7186423505572442,
-        "latency_ms": 10.65025102109351
+        "latency_ms": 8.761301595517038
       }
     },
     "keyword": {
@@ -75,784 +1352,13 @@
         "recall@5": 0.40425531914893614,
         "recall@10": 0.6170212765957447,
         "mrr": 0.3210824045930429,
-        "latency_ms": 1.9449733192735212
+        "latency_ms": 1.883137638326437
       }
     }
   },
   "misses": {
-    "hybrid": [
-      {
-        "query": "What did my accommodation cost per month beginning in 2025?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "housing/addendum-2025.md"
-        ]
-      },
-      {
-        "query": "What did my accommodation cost per month beginning in 2026?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "How much money did I set aside during 2025?",
-        "category": "paraphrase",
-        "first_rank": 5,
-        "top_hit": "finance/pension-statement.pdf",
-        "relevant": [
-          "finance/2025/summary.txt"
-        ]
-      },
-      {
-        "query": "What passphrase did visitors need on the previous provider's equipment?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "work/q2/meeting-notes.md",
-        "relevant": [
-          "archive/tech/router-setup-old.md"
-        ]
-      },
-      {
-        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
-        "category": "paraphrase",
-        "first_rank": 5,
-        "top_hit": "housing/moving/checklist.md",
-        "relevant": [
-          "tech/migration/checklist.md"
-        ]
-      },
-      {
-        "query": "Why does my browser refuse a site's security credentials as outdated?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "tech/vpn-config.txt",
-        "relevant": [
-          "tech/ssl-errors.md"
-        ]
-      },
-      {
-        "query": "How do I switch into the isolated project sandbox?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "work/onboarding.md",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "Why was the portal release pushed from spring to summer?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "work/q3/meeting-notes.md",
-        "relevant": [
-          "work/q2/meeting-notes.md"
-        ]
-      },
-      {
-        "query": "What credentials does a newcomer get for experimenting with the service?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "work/onboarding.md"
-        ]
-      },
-      {
-        "query": "At which venue is the staff getaway scheduled?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "work/offsite-agenda.html"
-        ]
-      },
-      {
-        "query": "How do I get to the excursion town outside the city?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "travel/notes.md"
-        ]
-      },
-      {
-        "query": "At what hour do I fly back home?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "travel/flight-confirmation.pdf"
-        ]
-      },
-      {
-        "query": "What should I bring to see in the dark?",
-        "category": "paraphrase",
-        "first_rank": 5,
-        "top_hit": "health/dentist-appointment.md",
-        "relevant": [
-          "travel/hiking-alps.md"
-        ]
-      },
-      {
-        "query": "What signs show my wild-yeast culture is strong enough for baking?",
-        "category": "paraphrase",
-        "first_rank": 8,
-        "top_hit": "kitchen/pizza-dough.md",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "What protective gear do I take for wet weather photography?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "hobbies/photo/checklist.md"
-        ]
-      },
-      {
-        "query": "Is there a free place to leave my car at the building?",
-        "category": "paraphrase",
-        "first_rank": 8,
-        "top_hit": "travel/car-rental.txt",
-        "relevant": [
-          "housing/addendum-2025.md",
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "Must somebody be present to open the door for the repairman?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "housing/washing-machine.txt",
-        "relevant": [
-          "housing/landlord-email.txt"
-        ]
-      },
-      {
-        "query": "How long does the client have to settle the bill?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "finance/invoice-INV-2026-0412.docx"
-        ]
-      },
-      {
-        "query": "What was the overall sum of my third-quarter outlays?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "finance/expense-report-q3.md"
-        ]
-      },
-      {
-        "query": "Which tool switches between different language releases?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "How often should we meet the payment company in the interim?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "work/onboarding.md",
-        "relevant": [
-          "work/q2/meeting-notes.md"
-        ]
-      },
-      {
-        "query": "What are the tasks on the very first morning of a new hire?",
-        "category": "paraphrase",
-        "first_rank": 8,
-        "top_hit": "housing/moving/checklist.md",
-        "relevant": [
-          "work/onboarding.md"
-        ]
-      },
-      {
-        "query": "Is there a single ticket for public transport that pays off on a longer stay?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "travel/notes.md"
-        ]
-      },
-      {
-        "query": "At what time do I land in Portugal?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "work/q3/meeting-notes.md",
-        "relevant": [
-          "travel/flight-confirmation.pdf"
-        ]
-      },
-      {
-        "query": "Can I pay for the mountain lodge with plastic?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "travel/hiking-alps.md"
-        ]
-      },
-      {
-        "query": "What kind of container suits the fermenting culture?",
-        "category": "paraphrase",
-        "first_rank": 9,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "How should I arrange the seedlings to reduce humidity?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "housing/notes.md",
-        "relevant": [
-          "hobbies/gardening.md"
-        ]
-      },
-      {
-        "query": "How many power cells should be ready before heading out to take pictures?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/lisbon/checklist.md",
-        "relevant": [
-          "hobbies/photo/checklist.md"
-        ]
-      }
-    ],
-    "vector": [
-      {
-        "query": "What did my accommodation cost per month beginning in 2025?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "housing/addendum-2025.md"
-        ]
-      },
-      {
-        "query": "What did my accommodation cost per month beginning in 2026?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "How much money did I set aside during 2025?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "finance/2025/summary.txt"
-        ]
-      },
-      {
-        "query": "What passphrase did visitors need on the previous provider's equipment?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "housing/moving/checklist.md",
-        "relevant": [
-          "archive/tech/router-setup-old.md"
-        ]
-      },
-      {
-        "query": "What threshold of failing requests should make me undo a release?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "tech/windows-errors.md",
-        "relevant": [
-          "tech/runbook-deploy.md"
-        ]
-      },
-      {
-        "query": "How do I switch into the isolated project sandbox?",
-        "category": "paraphrase",
-        "first_rank": 5,
-        "top_hit": "tech/migration/checklist.md",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "Why was the portal release pushed from spring to summer?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "work/q3/meeting-notes.md",
-        "relevant": [
-          "work/q2/meeting-notes.md"
-        ]
-      },
-      {
-        "query": "How do I get to the excursion town outside the city?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "travel/notes.md"
-        ]
-      },
-      {
-        "query": "What should I bring to see in the dark?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "hobbies/photo/checklist.md",
-        "relevant": [
-          "travel/hiking-alps.md"
-        ]
-      },
-      {
-        "query": "What signs show my wild-yeast culture is strong enough for baking?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "kitchen/pizza-dough.md",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "Is there a free place to leave my car at the building?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "travel/car-rental.txt",
-        "relevant": [
-          "housing/addendum-2025.md",
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "How long does the client have to settle the bill?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "housing/lease-agreement.md",
-        "relevant": [
-          "finance/invoice-INV-2026-0412.docx"
-        ]
-      },
-      {
-        "query": "What was the overall sum of my third-quarter outlays?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "finance/tax-notes-2024.md",
-        "relevant": [
-          "finance/expense-report-q3.md"
-        ]
-      },
-      {
-        "query": "How slow must responses be before the on-call person is paged for speed?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "work/onboarding.md",
-        "relevant": [
-          "tech/runbook-deploy.md"
-        ]
-      },
-      {
-        "query": "What typically makes a browser distrust who issued a site's credentials?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "work/onboarding.md",
-        "relevant": [
-          "tech/ssl-errors.md"
-        ]
-      },
-      {
-        "query": "Which tool switches between different language releases?",
-        "category": "paraphrase",
-        "first_rank": 10,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "What are the tasks on the very first morning of a new hire?",
-        "category": "paraphrase",
-        "first_rank": 6,
-        "top_hit": "work/q4/meeting-notes.md",
-        "relevant": [
-          "work/onboarding.md"
-        ]
-      },
-      {
-        "query": "What kind of container suits the fermenting culture?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "kitchen/fermentation-guide.md",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "Who has to fix the appliance when the fault code keeps coming back?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "housing/washing-machine.txt",
-        "relevant": [
-          "kitchen/oven-manual.txt"
-        ]
-      },
-      {
-        "query": "How should I arrange the seedlings to reduce humidity?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "hobbies/gardening.md"
-        ]
-      }
-    ],
-    "keyword": [
-      {
-        "query": "What did my accommodation cost per month beginning in 2025?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "housing/lease-agreement.md",
-        "relevant": [
-          "housing/addendum-2025.md"
-        ]
-      },
-      {
-        "query": "What did my accommodation cost per month beginning in 2026?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "Who is coming to my place to fix the heating equipment and what time window did they give?",
-        "category": "paraphrase",
-        "first_rank": 6,
-        "top_hit": "finance/tax-notes-2024.md",
-        "relevant": [
-          "housing/landlord-email.txt"
-        ]
-      },
-      {
-        "query": "How much money did I set aside during 2025?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "finance/2025/summary.txt"
-        ]
-      },
-      {
-        "query": "What is the hourly rate I charged the web design client?",
-        "category": "paraphrase",
-        "first_rank": 4,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "finance/invoice-INV-2026-0412.docx"
-        ]
-      },
-      {
-        "query": "What did I pay for desks in a shared office space?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "finance/budget-2026.md",
-        "relevant": [
-          "finance/expense-report-q3.md"
-        ]
-      },
-      {
-        "query": "What passphrase did visitors need on the previous provider's equipment?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "work/q2/meeting-notes.md",
-        "relevant": [
-          "archive/tech/router-setup-old.md"
-        ]
-      },
-      {
-        "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "health/doctor-email.txt",
-        "relevant": [
-          "tech/migration/checklist.md"
-        ]
-      },
-      {
-        "query": "Why does my browser refuse a site's security credentials as outdated?",
-        "category": "paraphrase",
-        "first_rank": 8,
-        "top_hit": "housing/lease-agreement.md",
-        "relevant": [
-          "tech/ssl-errors.md"
-        ]
-      },
-      {
-        "query": "How do I switch into the isolated project sandbox?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "kitchen/oven-manual.txt",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "Why was the portal release pushed from spring to summer?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "work/q3/meeting-notes.md",
-        "relevant": [
-          "work/q2/meeting-notes.md"
-        ]
-      },
-      {
-        "query": "What credentials does a newcomer get for experimenting with the service?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "work/onboarding.md"
-        ]
-      },
-      {
-        "query": "Which programming language am I hoping to pick up next year?",
-        "category": "paraphrase",
-        "first_rank": 3,
-        "top_hit": "travel/car-rental.txt",
-        "relevant": [
-          "work/performance-review.md"
-        ]
-      },
-      {
-        "query": "At which venue is the staff getaway scheduled?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "work/offsite-agenda.html"
-        ]
-      },
-      {
-        "query": "How do I get to the excursion town outside the city?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "travel/notes.md"
-        ]
-      },
-      {
-        "query": "At what hour do I fly back home?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "travel/flight-confirmation.pdf"
-        ]
-      },
-      {
-        "query": "What should I bring to see in the dark?",
-        "category": "paraphrase",
-        "first_rank": 7,
-        "top_hit": "health/dentist-appointment.md",
-        "relevant": [
-          "travel/hiking-alps.md"
-        ]
-      },
-      {
-        "query": "What signs show my wild-yeast culture is strong enough for baking?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "kitchen/pizza-dough.md",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "How long until the appliance reaches its set temperature?",
-        "category": "paraphrase",
-        "first_rank": 9,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "kitchen/oven-manual.txt"
-        ]
-      },
-      {
-        "query": "How can I keep my nightshade plants from catching the mold?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "health/allergy-medication.txt",
-        "relevant": [
-          "hobbies/gardening.md"
-        ]
-      },
-      {
-        "query": "What protective gear do I take for wet weather photography?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "hobbies/gardening.md",
-        "relevant": [
-          "hobbies/photo/checklist.md"
-        ]
-      },
-      {
-        "query": "Is there a free place to leave my car at the building?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/hiking-alps.md",
-        "relevant": [
-          "housing/addendum-2025.md",
-          "housing/addendum-2026.md"
-        ]
-      },
-      {
-        "query": "Must somebody be present to open the door for the repairman?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/visa-notes.md",
-        "relevant": [
-          "housing/landlord-email.txt"
-        ]
-      },
-      {
-        "query": "How long does the client have to settle the bill?",
-        "category": "paraphrase",
-        "first_rank": 6,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "finance/invoice-INV-2026-0412.docx"
-        ]
-      },
-      {
-        "query": "What was the overall sum of my third-quarter outlays?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "work/q3/meeting-notes.md",
-        "relevant": [
-          "finance/expense-report-q3.md"
-        ]
-      },
-      {
-        "query": "How slow must responses be before the on-call person is paged for speed?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "travel/visa-notes.md",
-        "relevant": [
-          "tech/runbook-deploy.md"
-        ]
-      },
-      {
-        "query": "What security step comes last after moving to the new manager?",
-        "category": "paraphrase",
-        "first_rank": 2,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "tech/migration/checklist.md"
-        ]
-      },
-      {
-        "query": "What typically makes a browser distrust who issued a site's credentials?",
-        "category": "paraphrase",
-        "first_rank": 5,
-        "top_hit": "travel/visa-notes.md",
-        "relevant": [
-          "tech/ssl-errors.md"
-        ]
-      },
-      {
-        "query": "Which tool switches between different language releases?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "tech/docker-troubleshooting.md",
-        "relevant": [
-          "tech/python-env.md"
-        ]
-      },
-      {
-        "query": "How often should we meet the payment company in the interim?",
-        "category": "paraphrase",
-        "first_rank": 6,
-        "top_hit": "finance/mortgage-vs-rent.md",
-        "relevant": [
-          "work/q2/meeting-notes.md"
-        ]
-      },
-      {
-        "query": "What are the tasks on the very first morning of a new hire?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "tech/runbook-deploy.md",
-        "relevant": [
-          "work/onboarding.md"
-        ]
-      },
-      {
-        "query": "Is there a single ticket for public transport that pays off on a longer stay?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "finance/2024/summary.txt",
-        "relevant": [
-          "travel/notes.md"
-        ]
-      },
-      {
-        "query": "At what time do I land in Portugal?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "health/doctor-email.txt",
-        "relevant": [
-          "travel/flight-confirmation.pdf"
-        ]
-      },
-      {
-        "query": "Can I pay for the mountain lodge with plastic?",
-        "category": "paraphrase",
-        "first_rank": 6,
-        "top_hit": "work/offsite-agenda.html",
-        "relevant": [
-          "travel/hiking-alps.md"
-        ]
-      },
-      {
-        "query": "What kind of container suits the fermenting culture?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "housing/landlord-email.txt",
-        "relevant": [
-          "kitchen/notes.md"
-        ]
-      },
-      {
-        "query": "How should I arrange the seedlings to reduce humidity?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "work/project-proposal.md",
-        "relevant": [
-          "hobbies/gardening.md"
-        ]
-      },
-      {
-        "query": "How many power cells should be ready before heading out to take pictures?",
-        "category": "paraphrase",
-        "first_rank": null,
-        "top_hit": "travel/lisbon/checklist.md",
-        "relevant": [
-          "hobbies/photo/checklist.md"
-        ]
-      }
-    ]
+    "hybrid": 28,
+    "vector": 20,
+    "keyword": 37
   }
 }

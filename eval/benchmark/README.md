@@ -162,6 +162,12 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
   in the run header and saved by `--json`.
 * `compare_runs.py baseline.json candidate.json ...` tabulates runs and applies the numeric rule below. It refuses to
   compare runs made with a different model, query file, split, corpus or chunk size.
+  When the records carry per-query outcomes (every `--json` run now does; older records need re-recording) it also
+  prints a **paired comparison**: per question, how many the candidate answers better, worse or the same, an exact
+  sign test, and a bootstrap 95% interval for the MRR difference (seeded, so the same files always print the same
+  numbers). `--versus-arm vector` makes the same comparison between hybrid and one arm inside each run. Averages
+  alone cannot say whether a difference is real: with no losses it takes at least six wins to reach p < 0.05, and a
+  3/0 split gives p = 0.25.
 * `run_candidates.py` runs the whole pre-registered experiment in `experiments.md`: every candidate on the dev split
   and on both v1 gates, then a single confirmation run on the test split for the one candidate it selects.
 

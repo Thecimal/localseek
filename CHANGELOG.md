@@ -33,6 +33,9 @@
 - Eval: `eval/benchmark/queries-v3.json` (v2 unchanged plus a second question for every document: 119 questions, 47 dev
   and 72 test) with the same rules, an added check that no quote appears in an unlisted document, and
   `eval/make_review_sheet.py` for independent review of the relevance judgments.
+- Eval: `--json` records now include every query's own outcome, and `compare_runs.py` prints paired comparisons
+  (wins/losses/ties, exact sign test, bootstrap interval for the MRR difference) and `--versus-arm`. Records made
+  before this change have no per-query data and must be recorded again to get paired statistics.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

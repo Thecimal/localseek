@@ -10,7 +10,8 @@ Recall@k is the fraction of a query's relevant documents found in the top k; MRR
 first relevant document. Use `--model hash` for a fast, lexical-only baseline that needs no model download.
 
 Every run starts by printing what it ran on: the model, chunk settings, library versions, and content hashes of
-the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics.
+the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics
+and every query's own outcome (what compare_runs.py builds its paired statistics from).
 
 Experiments: `--tuning name=value,...` changes how hybrid search is fused, without changing the shipped defaults:
 rrf_k (int), vector_weight and keyword_weight (numbers above 0), keyword_limit (int: only the first N keyword hits
@@ -65,6 +66,7 @@ from retrieval_eval import (
     load_thresholds,
     misses,
     parse_tuning,
+    per_query_records,
     provenance_problems,
     result_record,
     trace_queries,
@@ -195,6 +197,8 @@ def main() -> int:
                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
             record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
             record["results"] = {mode: result_record(r) for mode, r in results.items()}
+            if args.json:
+                record["per_query"] = {mode: per_query_records(searcher, queries, root, mode) for mode in MODES}
             if args.by_category or args.json or (thresholds is not None and thresholds.by_category):
                 per_mode = _by_category(searcher, queries, root)
                 record["by_category"] = {

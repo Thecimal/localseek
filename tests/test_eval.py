@@ -757,6 +757,25 @@ class CliTests(EvalBase):
         self.assertEqual(set(record["misses"]), {"hybrid", "vector", "keyword"})
         self.assertIn(record["environment"]["corpus"]["sha256"][:12], result.stdout)
 
+    def test_json_has_each_querys_own_outcome(self):
+        data = [
+            {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"},
+            {"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"], "category": "wrong"},
+        ]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        rows = record["per_query"]["keyword"]
+        self.assertEqual([r["query"] for r in rows], ["tax invoice deadlines"] * 2)
+        self.assertEqual((rows[0]["first_rank"], rows[0]["recall@1"], rows[0]["rr"]), (1, 1.0, 1.0))
+        self.assertEqual((rows[1]["first_rank"], rows[1]["recall@1"], rows[1]["rr"]), (None, 0.0, 0.0))
+        for mode in ("hybrid", "vector", "keyword"):
+            missed = sum(1 for r in record["per_query"][mode] if r["first_rank"] != 1)
+            self.assertEqual(missed, record["misses"][mode])
+            average = sum(r["rr"] for r in record["per_query"][mode]) / 2
+            self.assertAlmostEqual(average, record["results"][mode]["mrr"])
+
     def test_json_records_gate_failures_and_still_exits_1(self):
         data = [{"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"]}]
         out = self.dir / "run.json"

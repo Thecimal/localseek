@@ -487,6 +487,26 @@ def misses(traces: Iterable[Trace]) -> list[Trace]:
     return [t for t in traces if t.first_rank != 1]
 
 
+def per_query_records(searcher, queries: Sequence[Query], root: Path, mode: str, ks: Sequence[int] = KS) -> list[dict]:
+    """One record per query: where the first relevant document landed and each query's own metrics.
+
+    These are what paired comparisons are built from; averages alone cannot say whether two runs differ by chance.
+    """
+    records = []
+    for trace in trace_queries(searcher, queries, root, mode, limit=max(ks)):
+        score = score_query(list(trace.ranked), trace.query.relevant, ks)
+        records.append(
+            {
+                "query": trace.query.text,
+                "category": trace.query.category,
+                "first_rank": trace.first_rank,
+                **{f"recall@{k}": value for k, value in score.recall.items()},
+                "rr": score.reciprocal_rank,
+            }
+        )
+    return records
+
+
 def format_miss(trace: Trace, limit: int = max(KS), width: int = 72) -> list[str]:
     text = trace.query.text if len(trace.query.text) <= width else trace.query.text[: width - 1] + "…"
     where = f"rank {trace.first_rank}" if trace.first_rank else f"not in top {limit}"

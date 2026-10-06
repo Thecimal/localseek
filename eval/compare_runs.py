@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
+from math import comb
 from pathlib import Path
 
 MIN_RECALL_GAIN = 0.08  # two queries of the 25 in the dev split
@@ -57,6 +59,87 @@ def meets_test_rule(base: dict, candidate: dict) -> bool:
     return _meets(base, candidate, MIN_RECALL_GAIN_TEST)
 
 
+# -- paired statistics ---------------------------------------------------------------------------------------------
+
+BOOTSTRAP_RESAMPLES = 10_000
+BOOTSTRAP_SEED = 0  # fixed, so the same two files always print the same interval
+
+
+def sign_test_p(wins: int, losses: int) -> float:
+    """Exact two-sided sign test: the chance of a split at least this lopsided if wins and losses were equally likely.
+
+    Ties carry no information and are left out by the caller. With no wins and no losses the answer is 1.
+    """
+    n = wins + losses
+    if n == 0:
+        return 1.0
+    tail = sum(comb(n, i) for i in range(min(wins, losses) + 1))
+    return min(1.0, 2 * tail / 2**n)
+
+
+def bootstrap_ci(diffs: list[float], level: float = 0.95) -> tuple[float, float]:
+    """Percentile bootstrap interval for the mean of paired differences."""
+    if not diffs:
+        raise ValueError("no differences to resample")
+    rng = random.Random(BOOTSTRAP_SEED)
+    n = len(diffs)
+    means = sorted(sum(rng.choices(diffs, k=n)) / n for _ in range(BOOTSTRAP_RESAMPLES))
+    low = means[int((1 - level) / 2 * BOOTSTRAP_RESAMPLES)]
+    high = means[int((1 + level) / 2 * BOOTSTRAP_RESAMPLES) - 1]
+    return low, high
+
+
+def paired_values(run_x: dict, mode_x: str, run_y: dict, mode_y: str, metric: str) -> list[tuple[float, float]]:
+    """Each query's value for one run and mode against another, matched by question text."""
+    try:
+        x = {row["query"]: row[metric] for row in run_x["per_query"][mode_x]}
+        y = {row["query"]: row[metric] for row in run_y["per_query"][mode_y]}
+    except KeyError as exc:
+        raise ValueError(f"run record has no per-query data ({exc}); record it again with run_eval.py --json") from exc
+    if x.keys() != y.keys():
+        raise ValueError("the two runs did not answer the same questions")
+    return [(x[q], y[q]) for q in x]
+
+
+def summarize_pairs(pairs: list[tuple[float, float]]) -> dict:
+    """Wins, losses and ties of y over x, the exact sign-test p-value, and the mean difference with its interval."""
+    diffs = [y - x for x, y in pairs]
+    wins = sum(d > _EPSILON for d in diffs)
+    losses = sum(d < -_EPSILON for d in diffs)
+    low, high = bootstrap_ci(diffs)
+    return {
+        "n": len(diffs),
+        "wins": wins,
+        "losses": losses,
+        "ties": len(diffs) - wins - losses,
+        "p": sign_test_p(wins, losses),
+        "mean": sum(diffs) / len(diffs),
+        "low": low,
+        "high": high,
+    }
+
+
+def _wlt(summary: dict) -> str:
+    return f"{summary['wins']}/{summary['losses']}/{summary['ties']}"
+
+
+def paired_rows(title: str, rows: list[tuple[str, dict]]) -> list[str]:
+    """rows: (label, {"recall@1": summary, "recall@5": summary, "rr": summary})."""
+    head = f"{'run':<28}{'recall@1 w/l/t':<17}{'p':<8}{'recall@5 w/l/t':<17}{'p':<8}MRR difference [95% CI]"
+    lines = [title, head]
+    for label, summaries in rows:
+        r1, r5, rr = summaries["recall@1"], summaries["recall@5"], summaries["rr"]
+        lines.append(
+            f"{label:<28}{_wlt(r1):<17}{r1['p']:<8.3f}{_wlt(r5):<17}{r5['p']:<8.3f}"
+            f"{rr['mean']:+.3f} [{rr['low']:+.3f}, {rr['high']:+.3f}]"
+        )
+    return lines
+
+
+def has_per_query(run: dict) -> bool:
+    return all(mode in run.get("per_query", {}) for mode in ("hybrid", "vector"))
+
+
 def describe(run: dict) -> str:
     tuning = run["environment"].get("tuning") or {}
     return ", ".join(f"{k}={str(v).lower() if isinstance(v, bool) else v}" for k, v in tuning.items()) or "(defaults)"
@@ -67,6 +150,8 @@ def main() -> int:
     parser.add_argument("baseline")
     parser.add_argument("candidates", nargs="+")
     parser.add_argument("--rule", choices=("dev", "test"), default="dev", help="which pre-registered rule to apply")
+    parser.add_argument("--versus-arm", choices=("vector", "keyword"),
+                        help="also compare hybrid with this arm inside each run (paired, per question)")
     args = parser.parse_args()
 
     runs = {}
@@ -109,6 +194,40 @@ def main() -> int:
     v = base["results"]["vector"]
     print(f"\nreference, vector arm of the baseline run: recall@1 {v['recall@1']:.2f}, recall@5 {v['recall@5']:.2f}, "
           f"MRR {v['mrr']:.2f}")  # fmt: skip
+    return print_pairs(args, runs)
+
+
+def print_pairs(args: argparse.Namespace, runs: dict) -> int:
+    names = [args.baseline, *args.candidates]
+    lacking = [Path(n).name for n in names if not has_per_query(runs[n])]
+    if lacking:
+        print("\nPaired statistics skipped: no per-query data in " + ", ".join(lacking)
+              + " (record again with run_eval.py --json).")
+        return 0
+    base = runs[args.baseline]
+    metrics = ("recall@1", "recall@5", "rr")
+    try:
+        if args.candidates:
+            rows = []
+            for n in args.candidates:
+                summaries = {m: summarize_pairs(paired_values(base, "hybrid", runs[n], "hybrid", m)) for m in metrics}
+                rows.append((Path(n).stem, summaries))
+            size = rows[0][1]["recall@1"]["n"]
+            print()
+            print("\n".join(paired_rows(f"Paired comparison with the baseline: hybrid, {size} questions "
+                                         "(w/l/t = candidate better / worse / same)", rows)))  # fmt: skip
+        if args.versus_arm:
+            rows = []
+            for n in names:
+                arm = args.versus_arm
+                summaries = {m: summarize_pairs(paired_values(runs[n], "hybrid", runs[n], arm, m)) for m in metrics}
+                rows.append((Path(n).stem, summaries))
+            print()
+            print("\n".join(paired_rows(f"The {args.versus_arm} arm against hybrid inside each run "
+                                         f"(w/l/t = {args.versus_arm} better / worse / same)", rows)))  # fmt: skip
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 

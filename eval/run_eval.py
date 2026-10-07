@@ -10,7 +10,16 @@ Recall@k is the fraction of a query's relevant documents found in the top k; MRR
 first relevant document. Use `--model hash` for a fast, lexical-only baseline that needs no model download.
 
 Every run starts by printing what it ran on: the model, chunk settings, library versions, and content hashes of
-the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics.
+the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics
+and every query's own outcome (what compare_runs.py builds its paired statistics from).
+
+Experiments: `--tuning name=value,...` changes how hybrid search is fused, without changing the shipped defaults:
+rrf_k (int), vector_weight and keyword_weight (numbers above 0), keyword_limit (int: only the first N keyword hits
+take part in fusion) and drop_stopwords (true or false). The settings are printed in the run header and saved by
+`--json`, so a result cannot be separated from the settings that produced it.
+
+Selecting: `--split NAME` keeps only queries whose optional `split` field matches (the held-out set uses
+dev and test).
 
 Reports: `--by-category` breaks results down by each query's optional `category` field. `--show-misses` lists, per
 mode, every query whose first relevant document is not the top result.
@@ -44,6 +53,7 @@ from retrieval_eval import (
     KS,
     DatasetError,
     ThresholdError,
+    TuningError,
     check_gate,
     check_indexed,
     count_checks,
@@ -55,6 +65,8 @@ from retrieval_eval import (
     load_dataset,
     load_thresholds,
     misses,
+    parse_tuning,
+    per_query_records,
     provenance_problems,
     result_record,
     trace_queries,
@@ -119,6 +131,8 @@ def main() -> int:
     parser.add_argument("--corpus", required=True)
     parser.add_argument("--queries", required=True)
     parser.add_argument("--model", default="BAAI/bge-small-en-v1.5")
+    parser.add_argument("--split", help="only use queries whose optional `split` field equals this (dev or test)")
+    parser.add_argument("--tuning", help="experimental search settings, e.g. rrf_k=10,keyword_limit=20 (see below)")
     parser.add_argument("--by-category", action="store_true", help="also report metrics per query category")
     parser.add_argument("--show-misses", action="store_true", help="list queries whose first relevant hit isn't rank 1")
     parser.add_argument("--json", metavar="FILE", help="also write the run record and all metrics to FILE")
@@ -132,6 +146,16 @@ def main() -> int:
         queries = load_dataset(args.queries, root)
     except DatasetError as exc:
         return _fail(f"invalid evaluation dataset ({args.queries})", exc.problems)
+    try:
+        tuning = parse_tuning(args.tuning)
+    except TuningError as exc:
+        return _fail("invalid --tuning", exc.problems)
+    if args.split:
+        available = sorted({q.split for q in queries if q.split})
+        queries = [q for q in queries if q.split == args.split]
+        if not queries:
+            known = ", ".join(available) or "none"
+            return _fail("no queries selected", [f"no query has split {args.split!r} (available: {known})"])
     thresholds = None
     if args.thresholds:
         try:
@@ -143,7 +167,7 @@ def main() -> int:
 
     embedder = get_embedder(args.model)
     settings = Settings(model=args.model)
-    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
+    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries, args.split, tuning)
     print("\n".join(format_environment(info)) + "\n")
     if thresholds is not None:
         stale = provenance_problems(thresholds.meta, info)
@@ -164,7 +188,7 @@ def main() -> int:
                 return _fail("invalid evaluation dataset", exc.problems)
             print(f"Indexed {stats.scanned} files ({stats.chunks} chunks) in {index_seconds:.1f}s\n")
 
-            searcher = Searcher(store, embedder)
+            searcher = Searcher(store, embedder, **tuning)
             print(f"{'mode':<9}" + "".join(f"recall@{k:<4}" for k in KS) + "MRR    latency")
             results = {}
             for mode in MODES:
@@ -173,6 +197,8 @@ def main() -> int:
                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
             record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
             record["results"] = {mode: result_record(r) for mode, r in results.items()}
+            if args.json:
+                record["per_query"] = {mode: per_query_records(searcher, queries, root, mode) for mode in MODES}
             if args.by_category or args.json or (thresholds is not None and thresholds.by_category):
                 per_mode = _by_category(searcher, queries, root)
                 record["by_category"] = {

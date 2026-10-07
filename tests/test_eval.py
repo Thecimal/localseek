@@ -69,6 +69,16 @@ class EvalBase(unittest.TestCase):
             load_dataset(self.dataset(content), self.root)
         return ctx.exception.problems
 
+    def run_cli(self, queries_path, corpus=None, thresholds=None, extra=()):
+        command = [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(corpus or self.root),
+                   "--queries", str(queries_path), "--model", "hash"]  # fmt: skip
+        command += list(extra)
+        if thresholds is not None:
+            path = self.dir / "thresholds.json"
+            path.write_text(thresholds if isinstance(thresholds, str) else json.dumps(thresholds), encoding="utf-8")
+            command += ["--thresholds", str(path)]
+        return subprocess.run(command, capture_output=True, text=True, cwd=REPO)
+
 
 class DatasetValidationTests(EvalBase):
     def assertRejected(self, content, fragment):
@@ -274,6 +284,42 @@ class TraceTests(EvalBase):
     def test_long_queries_are_truncated_in_the_report(self):
         trace = self.trace("tax " * 80, ["work/notes.md"])
         self.assertLess(len(format_miss(trace)[0]), 140)
+
+
+class SplitTests(EvalBase):
+    DATA = [
+        {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "split": "dev"},
+        {"query": "bicycle chain tire", "relevant": ["notes.md"], "split": "test"},
+        {"query": "flour ratios", "relevant": ["recipes/notes.md"], "split": "dev"},
+        {"query": "no split here", "relevant": ["notes.md"]},
+    ]
+
+    def test_split_is_optional_and_loaded(self):
+        queries = load_dataset(self.dataset(self.DATA), self.root)
+        self.assertEqual([q.split for q in queries], ["dev", "test", "dev", None])
+
+    def test_invalid_split_is_rejected(self):
+        for bad in ("", " ", 1, None):
+            with self.subTest(split=bad):
+                found = "\n".join(self.problems([{"query": "q", "relevant": ["notes.md"], "split": bad}]))
+                self.assertIn("'split' must be a non-empty string", found)
+
+    def test_cli_selects_one_split_and_says_so(self):
+        result = self.run_cli(self.dataset(self.DATA), extra=["--split", "dev"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("(2 queries, split dev,", result.stdout)
+
+    def test_cli_rejects_an_unknown_or_empty_split(self):
+        result = self.run_cli(self.dataset(self.DATA), extra=["--split", "holdout"])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("available: dev, test", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertNotIn("Indexed", result.stdout)
+
+    def test_without_split_all_queries_run(self):
+        result = self.run_cli(self.dataset(self.DATA))
+        self.assertIn("(4 queries,", result.stdout)
+        self.assertNotIn("split", result.stdout.split("Indexed")[0].split("dataset:")[1].split("\n")[0])
 
 
 class IndexedCheckTests(EvalBase):
@@ -647,16 +693,6 @@ class GateAcceptanceTests(EvalBase):
 
 
 class CliTests(EvalBase):
-    def run_cli(self, queries_path, corpus=None, thresholds=None, extra=()):
-        command = [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(corpus or self.root),
-                   "--queries", str(queries_path), "--model", "hash"]  # fmt: skip
-        command += list(extra)
-        if thresholds is not None:
-            path = self.dir / "thresholds.json"
-            path.write_text(thresholds if isinstance(thresholds, str) else json.dumps(thresholds), encoding="utf-8")
-            command += ["--thresholds", str(path)]
-        return subprocess.run(command, capture_output=True, text=True, cwd=REPO)
-
     def shipped(self, thresholds):
         return self.run_cli(REPO / "eval" / "queries.json", REPO / "examples" / "corpus", thresholds)
 
@@ -720,6 +756,25 @@ class CliTests(EvalBase):
         self.assertEqual(record["gate"], {"checks": 1, "failures": []})
         self.assertEqual(set(record["misses"]), {"hybrid", "vector", "keyword"})
         self.assertIn(record["environment"]["corpus"]["sha256"][:12], result.stdout)
+
+    def test_json_has_each_querys_own_outcome(self):
+        data = [
+            {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "category": "exact"},
+            {"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"], "category": "wrong"},
+        ]
+        out = self.dir / "run.json"
+        result = self.run_cli(self.dataset(data), extra=["--json", str(out)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(out.read_text(encoding="utf-8"))
+        rows = record["per_query"]["keyword"]
+        self.assertEqual([r["query"] for r in rows], ["tax invoice deadlines"] * 2)
+        self.assertEqual((rows[0]["first_rank"], rows[0]["recall@1"], rows[0]["rr"]), (1, 1.0, 1.0))
+        self.assertEqual((rows[1]["first_rank"], rows[1]["recall@1"], rows[1]["rr"]), (None, 0.0, 0.0))
+        for mode in ("hybrid", "vector", "keyword"):
+            missed = sum(1 for r in record["per_query"][mode] if r["first_rank"] != 1)
+            self.assertEqual(missed, record["misses"][mode])
+            average = sum(r["rr"] for r in record["per_query"][mode]) / 2
+            self.assertAlmostEqual(average, record["results"][mode]["mrr"])
 
     def test_json_records_gate_failures_and_still_exits_1(self):
         data = [{"query": "tax invoice deadlines", "relevant": ["recipes/sourdough.md"]}]

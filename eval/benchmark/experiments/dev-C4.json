@@ -1,0 +1,89 @@
+{
+  "environment": {
+    "model": "BAAI/bge-small-en-v1.5",
+    "tuning": {
+      "keyword_limit": 20
+    },
+    "chunk_words": 220,
+    "overlap_words": 30,
+    "dataset": {
+      "path": "/home/thecimal/Downloads/localseek/eval/benchmark/queries-v2.json",
+      "queries": 25,
+      "split": "dev",
+      "sha256": "e156b98f38fbfee5587198726c9e875d5193e45652aa19cab32f4ea1fd20593d"
+    },
+    "corpus": {
+      "path": "/home/thecimal/Downloads/localseek/eval/benchmark/corpus",
+      "files": 62,
+      "sha256": "39c2e84b7a80c64d5216841124eca8aadabbfbe2494cd6be087e4a7bb572c7e6"
+    },
+    "versions": {
+      "python": "3.14.4",
+      "localseek": "0.1.0",
+      "fastembed": "0.8.1",
+      "numpy": "2.5.3"
+    },
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43"
+  },
+  "indexed": {
+    "files": 62,
+    "chunks": 80
+  },
+  "results": {
+    "hybrid": {
+      "recall@1": 0.4,
+      "recall@5": 0.76,
+      "recall@10": 0.8,
+      "mrr": 0.5283809523809524,
+      "latency_ms": 11.782989240018651
+    },
+    "vector": {
+      "recall@1": 0.6,
+      "recall@5": 0.92,
+      "recall@10": 0.96,
+      "mrr": 0.7337142857142857,
+      "latency_ms": 10.576174239977263
+    },
+    "keyword": {
+      "recall@1": 0.16,
+      "recall@5": 0.4,
+      "recall@10": 0.68,
+      "mrr": 0.29563492063492064,
+      "latency_ms": 2.2093650000169873
+    }
+  },
+  "by_category": {
+    "hybrid": {
+      "paraphrase": {
+        "recall@1": 0.4,
+        "recall@5": 0.76,
+        "recall@10": 0.8,
+        "mrr": 0.5283809523809524,
+        "latency_ms": 12.402054159902036
+      }
+    },
+    "vector": {
+      "paraphrase": {
+        "recall@1": 0.6,
+        "recall@5": 0.92,
+        "recall@10": 0.96,
+        "mrr": 0.7337142857142857,
+        "latency_ms": 11.274254839809146
+      }
+    },
+    "keyword": {
+      "paraphrase": {
+        "recall@1": 0.16,
+        "recall@5": 0.4,
+        "recall@10": 0.68,
+        "mrr": 0.29563492063492064,
+        "latency_ms": 2.19766043999698
+      }
+    }
+  },
+  "misses": {
+    "hybrid": 15,
+    "vector": 10,
+    "keyword": 21
+  }
+}

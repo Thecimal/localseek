@@ -106,6 +106,84 @@ The hash gate was checked against a deliberately broken ranking (keyword results
 run passes all its checks and the broken one fails with every affected row listed, while the untouched vector mode is
 correctly not reported.
 
+## Held-out paraphrase set (`queries-v2.json`)
+
+Benchmark v1 has been studied in detail, so changes to search should not be tuned against it. `queries-v2.json` is a
+second query set over the **same corpus** (so the v1 fingerprints and thresholds stay valid), built to measure the
+README's headline claim, finding a file when the question shares no words with it, on queries nobody has tuned for.
+
+* **One question for every document** (61 questions, 64 relevance judgments), so the hard ones cannot be skipped.
+  A document that is a copy or a variant of another is listed as relevant to whichever questions it answers.
+* **Paraphrase rule, enforced by a test:** a question may not share a content word (three or more letters, not a
+  stopword; numbers are exempt, so a question can still name a year) with the quote that answers it.
+* **Evidence for every judgment**, exactly as in v1: each relevant document has a quote that must appear in it.
+* **Fixed dev/test split.** `split` is `dev` or `test` by the parity of the SHA-256 of the first relevant path, so
+  nobody picks which questions are held out. It gives 25 dev and 36 test questions. Use `--split dev` while
+  working and `--split test` **once**, at the end. Twenty-five questions is thin: treat dev results as a sanity
+  check, not a precise measurement.
+* **Not a gate.** There are no thresholds for it; it exists to compare a change against the baseline.
+
+```bash
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries-v2.json \
+    --split dev --show-misses --json dev-run.json
+```
+
+### Larger set for new work (`queries-v3.json`)
+
+With only 25 dev questions, a change of one or two queries cannot be told from noise. `queries-v3.json` contains all
+61 questions of v2, **unchanged and first** (a test checks this), followed by 58 new ones: a second question for every
+document, about a **different fact** than its v2 question. It follows exactly the same rules as v2: no shared content
+word between a question and its quote, a quote for every judgment, and the same hash-based split. It gives 47 dev and
+72 test questions. Every v3 test check also runs on v2.
+
+* **Which file for what.** `queries-v2.json` stays frozen because the recorded baseline and the fusion experiment
+  point at its fingerprint (`e156b98f38fb`); use it only to reproduce them. New work should use `queries-v3.json`.
+* **The test split is still unused.** Neither v2's test questions nor the 47 new ones have been run, and the
+  single-use rule applies to the whole v3 test split. The 25 dev questions inherited from v2 were used to choose among
+  candidates in the first experiment; the 22 added dev questions are fresh.
+* **Evidence completeness.** For both sets a test checks that no quote appears in a document that is not listed as
+  relevant, so a relevant set cannot silently miss a duplicate.
+* **Independent review.** `make_review_sheet.py` writes a sheet listing each question with its judged documents and
+  quotes and two checkboxes, so someone other than the author can check the judgments without running any search.
+  Corrections that come out of a review change the question file, and therefore its fingerprint, so make them before
+  recording new baselines.
+
+```bash
+python eval/make_review_sheet.py --queries eval/benchmark/queries-v3.json --out review-sheet.md
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries-v3.json \
+    --split dev --show-misses --json eval/benchmark/baselines/bge-v3-dev.json
+```
+
+### Tools for experiments
+
+* `run_eval.py --tuning rrf_k=10,keyword_limit=20,...` runs hybrid search with experimental fusion settings
+  (`rrf_k`, `vector_weight`, `keyword_weight`, `keyword_limit`, `drop_stopwords`). The shipped defaults are unchanged,
+  a test checks that default search still reproduces the recorded hash baseline exactly, and the settings are printed
+  in the run header and saved by `--json`.
+* `compare_runs.py baseline.json candidate.json ...` tabulates runs and applies the numeric rule below. It refuses to
+  compare runs made with a different model, query file, split, corpus or chunk size.
+  When the records carry per-query outcomes (every `--json` run now does; older records need re-recording) it also
+  prints a **paired comparison**: per question, how many the candidate answers better, worse or the same, an exact
+  sign test, and a bootstrap 95% interval for the MRR difference (seeded, so the same files always print the same
+  numbers). `--versus-arm vector` makes the same comparison between hybrid and one arm inside each run. Averages
+  alone cannot say whether a difference is real: with no losses it takes at least six wins to reach p < 0.05, and a
+  3/0 split gives p = 0.25.
+* `run_candidates.py` runs the whole pre-registered experiment in `experiments.md`: every candidate on the dev split
+  and on both v1 gates, then a single confirmation run on the test split for the one candidate it selects.
+
+### Protocol for a change to search (fixed before the first experiment)
+
+A change to retrieval or fusion is accepted only if all three hold:
+
+1. It improves `recall@1` and `MRR` for hybrid on the **dev** split compared with the recorded baseline.
+2. The v1 gates still pass: the hash thresholds in CI, and `thresholds-bge-small-en-v1.5.json` with the real model.
+   This is what protects the keyword, identifier and near-duplicate queries from being traded away.
+3. Run once on the **test** split, it shows the same direction of improvement. A change that helps dev but not test
+   is overfit and is rejected; do not tweak and re-run the test split.
+
+Candidates are listed before they are run, so that failing ones stay on the record. Record each variant's dev result
+with `--json` and keep the files.
+
 ## Rules for changing it
 
 1. Write documents and queries **before** looking at any retrieval results.

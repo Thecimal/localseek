@@ -1,0 +1,420 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 59f4535..a508e34 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -22,6 +22,9 @@
+   from a recorded baseline by a documented rule. The benchmark ships `baselines/hash.json` and `thresholds-hash.json`.
+ - CI: the pull-request workflow now runs the hash-embedder retrieval gate on every operating system, and a manual
+   "Model evaluation" workflow runs the real model against thresholds derived from its baseline.
++- Eval: held-out paraphrase set `eval/benchmark/queries-v2.json` (61 questions, one per document, no shared content
++  words with their answers, fixed dev/test split by path hash) with a documented protocol for testing search changes,
++  and a `--split` option. The optional `split` field is validated and shown in the run header.
+ - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
+ 
+ ## 0.1.0
+diff --git a/eval/benchmark/README.md b/eval/benchmark/README.md
+index a093f49..c1fecc0 100644
+--- a/eval/benchmark/README.md
++++ b/eval/benchmark/README.md
+@@ -106,6 +106,41 @@ The hash gate was checked against a deliberately broken ranking (keyword results
+ run passes all its checks and the broken one fails with every affected row listed, while the untouched vector mode is
+ correctly not reported.
+ 
++## Held-out paraphrase set (`queries-v2.json`)
++
++Benchmark v1 has been studied in detail, so changes to search should not be tuned against it. `queries-v2.json` is a
++second query set over the **same corpus** (so the v1 fingerprints and thresholds stay valid), built to measure the
++README's headline claim, finding a file when the question shares no words with it, on queries nobody has tuned for.
++
++* **One question for every document** (61 questions, 64 relevance judgments), so the hard ones cannot be skipped.
++  A document that is a copy or a variant of another is listed as relevant to whichever questions it answers.
++* **Paraphrase rule, enforced by a test:** a question may not share a content word (three or more letters, not a
++  stopword; numbers are exempt, so a question can still name a year) with the quote that answers it.
++* **Evidence for every judgment**, exactly as in v1: each relevant document has a quote that must appear in it.
++* **Fixed dev/test split.** `split` is `dev` or `test` by the parity of the SHA-256 of the first relevant path, so
++  nobody picks which questions are held out. It gives 25 dev and 36 test questions. Use `--split dev` while
++  working and `--split test` **once**, at the end. Twenty-five questions is thin: treat dev results as a sanity
++  check, not a precise measurement.
++* **Not a gate.** There are no thresholds for it; it exists to compare a change against the baseline.
++
++```bash
++python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries-v2.json \
++    --split dev --show-misses --json dev-run.json
++```
++
++### Protocol for a change to search (fixed before the first experiment)
++
++A change to retrieval or fusion is accepted only if all three hold:
++
++1. It improves `recall@1` and `MRR` for hybrid on the **dev** split compared with the recorded baseline.
++2. The v1 gates still pass: the hash thresholds in CI, and `thresholds-bge-small-en-v1.5.json` with the real model.
++   This is what protects the keyword, identifier and near-duplicate queries from being traded away.
++3. Run once on the **test** split, it shows the same direction of improvement. A change that helps dev but not test
++   is overfit and is rejected; do not tweak and re-run the test split.
++
++Candidates are listed before they are run, so that failing ones stay on the record. Record each variant's dev result
++with `--json` and keep the files.
++
+ ## Rules for changing it
+ 
+ 1. Write documents and queries **before** looking at any retrieval results.
+diff --git a/eval/benchmark/queries-v2.json b/eval/benchmark/queries-v2.json
+new file mode 100644
+index 0000000..bef81c8
+--- /dev/null
++++ b/eval/benchmark/queries-v2.json
+@@ -0,0 +1,63 @@
++[
++  {"category": "paraphrase", "split": "test", "query": "Am I allowed to keep a snake as a pet in my flat?", "relevant": ["housing/lease-agreement.md"], "evidence": {"housing/lease-agreement.md": "reptiles, exotic animals and more than two pets in total are not permitted"}},
++  {"category": "paraphrase", "split": "dev", "query": "What did my accommodation cost per month beginning in 2025?", "relevant": ["housing/addendum-2025.md"], "evidence": {"housing/addendum-2025.md": "effective 1 january 2025 the monthly rent is $1,520"}},
++  {"category": "paraphrase", "split": "dev", "query": "What did my accommodation cost per month beginning in 2026?", "relevant": ["housing/addendum-2026.md"], "evidence": {"housing/addendum-2026.md": "effective 1 january 2026 the monthly rent is $1,585"}},
++  {"category": "paraphrase", "split": "test", "query": "What redecorating did the property owner commit to?", "relevant": ["housing/notes.md"], "evidence": {"housing/notes.md": "repaint the hallway in the spring"}},
++  {"category": "paraphrase", "split": "dev", "query": "Who is coming to my place to fix the heating equipment and what time window did they give?", "relevant": ["housing/landlord-email.txt"], "evidence": {"housing/landlord-email.txt": "the plumber, mr. delgado, will visit on 14 october between 9:00 and 12:00"}},
++  {"category": "paraphrase", "split": "test", "query": "What is the maximum payout for my possessions?", "relevant": ["housing/insurance-policy.html"], "evidence": {"housing/insurance-policy.html": "personal contents: $40,000"}},
++  {"category": "paraphrase", "split": "test", "query": "How do I make sure letters keep reaching me after relocating?", "relevant": ["housing/moving/checklist.md"], "evidence": {"housing/moving/checklist.md": "forward mail at the post office"}},
++  {"category": "paraphrase", "split": "test", "query": "What is the weight limit for one wash?", "relevant": ["housing/washing-machine.txt"], "evidence": {"housing/washing-machine.txt": "maximum load is 7 kg"}},
++  {"category": "paraphrase", "split": "test", "query": "What did I earn from self-employment in 2024?", "relevant": ["finance/tax-notes-2024.md"], "evidence": {"finance/tax-notes-2024.md": "freelance income: $48,200"}},
++  {"category": "paraphrase", "split": "test", "query": "What was my self-employment revenue for 2025?", "relevant": ["finance/tax-notes-2025.md"], "evidence": {"finance/tax-notes-2025.md": "freelance income: $53,900"}},
++  {"category": "paraphrase", "split": "test", "query": "How much money did I set aside during 2024?", "relevant": ["finance/2024/summary.txt"], "evidence": {"finance/2024/summary.txt": "total saved: 6,300"}},
++  {"category": "paraphrase", "split": "dev", "query": "How much money did I set aside during 2025?", "relevant": ["finance/2025/summary.txt"], "evidence": {"finance/2025/summary.txt": "total saved: 7,100"}},
++  {"category": "paraphrase", "split": "test", "query": "What is my net salary per month?", "relevant": ["finance/budget-2026.md"], "evidence": {"finance/budget-2026.md": "monthly take-home pay: $3,900"}},
++  {"category": "paraphrase", "split": "test", "query": "Is it financially better to purchase a flat or lease one?", "relevant": ["finance/mortgage-vs-rent.md"], "evidence": {"finance/mortgage-vs-rent.md": "keep renting for now and revisit the numbers in two years"}},
++  {"category": "paraphrase", "split": "dev", "query": "What is the hourly rate I charged the web design client?", "relevant": ["finance/invoice-INV-2026-0412.docx"], "evidence": {"finance/invoice-INV-2026-0412.docx": "36 hours at $65 per hour"}},
++  {"category": "paraphrase", "split": "test", "query": "When do I plan to stop working according to my pension forecast?", "relevant": ["finance/pension-statement.pdf"], "evidence": {"finance/pension-statement.pdf": "projected retirement age 67"}},
++  {"category": "paraphrase", "split": "dev", "query": "What did I pay for desks in a shared office space?", "relevant": ["finance/expense-report-q3.md"], "evidence": {"finance/expense-report-q3.md": "coworking day passes: $210.00"}},
++  {"category": "paraphrase", "split": "test", "query": "Which activities are okay while my leg heals?", "relevant": ["health/notes.md", "health/running-plan.md"], "evidence": {"health/notes.md": "cycling and swimming are fine", "health/running-plan.md": "replace all runs with cycling or swimming"}},
++  {"category": "paraphrase", "split": "test", "query": "What is the schedule for building up to the spring race?", "relevant": ["health/running-plan.md"], "evidence": {"health/running-plan.md": "weeks 5 to 8: build continuous running to 30 minutes"}},
++  {"category": "paraphrase", "split": "test", "query": "Did the imaging reveal anything torn or broken?", "relevant": ["health/doctor-email.txt"], "evidence": {"health/doctor-email.txt": "shows no tear and no structural damage"}},
++  {"category": "paraphrase", "split": "test", "query": "What is the advice about my morning meal on the day of the marathon?", "relevant": ["health/marathon-training.md"], "evidence": {"health/marathon-training.md": "eat a familiar breakfast three hours before the start"}},
++  {"category": "paraphrase", "split": "test", "query": "Why shouldn't I take my spring pill together with sleep aids?", "relevant": ["health/allergy-medication.txt"], "evidence": {"health/allergy-medication.txt": "it can cause drowsiness, so do not combine it with sleeping tablets"}},
++  {"category": "paraphrase", "split": "test", "query": "What is wrong with my tooth?", "relevant": ["health/dentist-appointment.md"], "evidence": {"health/dentist-appointment.md": "check of the cracked lower molar"}},
++  {"category": "paraphrase", "split": "test", "query": "Which address does the ad blocker for the whole house live at?", "relevant": ["tech/notes.md"], "evidence": {"tech/notes.md": "pi-hole dns 192.168.1.53"}},
++  {"category": "paraphrase", "split": "test", "query": "How can visitors join my wireless network at home?", "relevant": ["tech/router-setup.md", "housing/moving/checklist.md"], "evidence": {"tech/router-setup.md": "ssid maple-guest, password blue-heron-42", "housing/moving/checklist.md": "password blue-heron-42"}},
++  {"category": "paraphrase", "split": "dev", "query": "What passphrase did visitors need on the previous provider's equipment?", "relevant": ["archive/tech/router-setup-old.md"], "evidence": {"archive/tech/router-setup-old.md": "password green-heron-17"}},
++  {"category": "paraphrase", "split": "test", "query": "How do I recover when my archival job complains that the storage is locked?", "relevant": ["tech/homeserver/README.md"], "evidence": {"tech/homeserver/README.md": "run restic unlock"}},
++  {"category": "paraphrase", "split": "test", "query": "For how many days am I retaining recent restore points?", "relevant": ["tech/backup-policy.md"], "evidence": {"tech/backup-policy.md": "restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 12"}},
++  {"category": "paraphrase", "split": "dev", "query": "What threshold of failing requests should make me undo a release?", "relevant": ["tech/runbook-deploy.md"], "evidence": {"tech/runbook-deploy.md": "if the error rate stays above two percent for five minutes after a deployment"}},
++  {"category": "paraphrase", "split": "test", "query": "How do I let my account run containers without root privileges?", "relevant": ["tech/docker-troubleshooting.md"], "evidence": {"tech/docker-troubleshooting.md": "add your user to the docker group"}},
++  {"category": "paraphrase", "split": "dev", "query": "What should I reduce when the tunnel hangs on cellular data?", "relevant": ["tech/vpn-config.txt"], "evidence": {"tech/vpn-config.txt": "lower the mtu to 1380"}},
++  {"category": "paraphrase", "split": "dev", "query": "How should I dispose of the unencrypted spreadsheet after moving my logins?", "relevant": ["tech/migration/checklist.md"], "evidence": {"tech/migration/checklist.md": "securely delete the csv export and empty the trash"}},
++  {"category": "paraphrase", "split": "dev", "query": "Why does my browser refuse a site's security credentials as outdated?", "relevant": ["tech/ssl-errors.md"], "evidence": {"tech/ssl-errors.md": "err_cert_date_invalid means the certificate has expired or the device clock is wrong"}},
++  {"category": "paraphrase", "split": "test", "query": "How can I repair corrupted system files that break my software updates?", "relevant": ["tech/windows-errors.md"], "evidence": {"tech/windows-errors.md": "run sfc /scannow, then dism /online /cleanup-image /restorehealth"}},
++  {"category": "paraphrase", "split": "dev", "query": "How do I switch into the isolated project sandbox?", "relevant": ["tech/python-env.md"], "evidence": {"tech/python-env.md": "activate it with source .venv/bin/activate"}},
++  {"category": "paraphrase", "split": "dev", "query": "Why was the portal release pushed from spring to summer?", "relevant": ["work/q2/meeting-notes.md"], "evidence": {"work/q2/meeting-notes.md": "slipped from may to june because the payment provider certification took longer than planned"}},
++  {"category": "paraphrase", "split": "test", "query": "What caused the portal release to be pushed back for a second occasion?", "relevant": ["work/q3/meeting-notes.md"], "evidence": {"work/q3/meeting-notes.md": "delayed again, this time because the data migration from the legacy system needs another three weeks"}},
++  {"category": "paraphrase", "split": "test", "query": "How many extra developers got the green light for hiring?", "relevant": ["work/q4/meeting-notes.md"], "evidence": {"work/q4/meeting-notes.md": "two backend engineers approved to start in january"}},
++  {"category": "paraphrase", "split": "test", "query": "What must a client do once it exceeds the allowed call volume?", "relevant": ["work/api/README.md"], "evidence": {"work/api/README.md": "wait for the number of seconds in retry-after before trying again"}},
++  {"category": "paraphrase", "split": "dev", "query": "What credentials does a newcomer get for experimenting with the service?", "relevant": ["work/onboarding.md"], "evidence": {"work/onboarding.md": "api access starts with a sandbox key"}},
++  {"category": "paraphrase", "split": "test", "query": "How big a fraction of helpdesk requests could a self-serve site eliminate?", "relevant": ["work/project-proposal.md"], "evidence": {"work/project-proposal.md": "about forty percent of support tickets are for these three tasks"}},
++  {"category": "paraphrase", "split": "dev", "query": "Which programming language am I hoping to pick up next year?", "relevant": ["work/performance-review.md"], "evidence": {"work/performance-review.md": "learn rust well enough to review pull requests in it"}},
++  {"category": "paraphrase", "split": "test", "query": "How early must I tell the provider if I do not want the subscription to continue?", "relevant": ["work/vendor-contract.docx"], "evidence": {"work/vendor-contract.docx": "at least 90 days before the renewal date"}},
++  {"category": "paraphrase", "split": "dev", "query": "At which venue is the staff getaway scheduled?", "relevant": ["work/offsite-agenda.html"], "evidence": {"work/offsite-agenda.html": "lakeside lodge"}},
++  {"category": "paraphrase", "split": "dev", "query": "How do I get to the excursion town outside the city?", "relevant": ["travel/notes.md"], "evidence": {"travel/notes.md": "day trip to sintra by train from rossio station"}},
++  {"category": "paraphrase", "split": "test", "query": "Which socket converter should I pack?", "relevant": ["travel/lisbon/checklist.md"], "evidence": {"travel/lisbon/checklist.md": "power adapter type f"}},
++  {"category": "paraphrase", "split": "test", "query": "How long can I stay without applying for permission to enter?", "relevant": ["travel/visa-notes.md"], "evidence": {"travel/visa-notes.md": "no visa is needed for stays under 90 days"}},
++  {"category": "paraphrase", "split": "dev", "query": "At what hour do I fly back home?", "relevant": ["travel/flight-confirmation.pdf"], "evidence": {"travel/flight-confirmation.pdf": "return tuesday 16 june departs 18:05"}},
++  {"category": "paraphrase", "split": "test", "query": "Whom should I look for when picking up the hire car?", "relevant": ["travel/car-rental.txt"], "evidence": {"travel/car-rental.txt": "desk contact: ana costa"}},
++  {"category": "paraphrase", "split": "dev", "query": "What should I bring to see in the dark?", "relevant": ["travel/hiking-alps.md"], "evidence": {"travel/hiking-alps.md": "headlamp"}},
++  {"category": "paraphrase", "split": "dev", "query": "What signs show my wild-yeast culture is strong enough for baking?", "relevant": ["kitchen/notes.md"], "evidence": {"kitchen/notes.md": "it is ready to bake with when it doubles within six hours and smells pleasantly sour"}},
++  {"category": "paraphrase", "split": "test", "query": "How long should the loaf stay in the oven in total?", "relevant": ["kitchen/bread-recipe.md", "archive/kitchen/bread-recipe-backup.md"], "evidence": {"kitchen/bread-recipe.md": "20 minutes with the lid on and 25 minutes with the lid off", "archive/kitchen/bread-recipe-backup.md": "20 minutes with the lid on and 25 minutes with the lid off"}},
++  {"category": "paraphrase", "split": "dev", "query": "How wet should the dough for a flatbread with toppings be?", "relevant": ["kitchen/pizza-dough.md"], "evidence": {"kitchen/pizza-dough.md": "65 percent hydration"}},
++  {"category": "paraphrase", "split": "dev", "query": "Which seasoning amount works for shredded cabbage?", "relevant": ["kitchen/fermentation-guide.md"], "evidence": {"kitchen/fermentation-guide.md": "use two percent salt by weight of the vegetables for sauerkraut"}},
++  {"category": "paraphrase", "split": "dev", "query": "How long until the appliance reaches its set temperature?", "relevant": ["kitchen/oven-manual.txt"], "evidence": {"kitchen/oven-manual.txt": "preheating takes about 12 minutes to 200 degrees"}},
++  {"category": "paraphrase", "split": "test", "query": "When should I swap the worn transmission link?", "relevant": ["hobbies/bike-maintenance.md"], "evidence": {"hobbies/bike-maintenance.md": "replace the chain at 0.75 percent wear"}},
++  {"category": "paraphrase", "split": "dev", "query": "How can I keep my nightshade plants from catching the mold?", "relevant": ["hobbies/gardening.md"], "evidence": {"hobbies/gardening.md": "copper fungicide helps prevent it"}},
++  {"category": "paraphrase", "split": "test", "query": "What size should shared pictures be exported at?", "relevant": ["hobbies/photo/README.md"], "evidence": {"hobbies/photo/README.md": "export jpegs at 2048 pixels for sharing"}},
++  {"category": "paraphrase", "split": "dev", "query": "What protective gear do I take for wet weather photography?", "relevant": ["hobbies/photo/checklist.md"], "evidence": {"hobbies/photo/checklist.md": "pack the tripod and a rain cover"}},
++  {"category": "paraphrase", "split": "test", "query": "What example is given for tying a new routine onto an existing one?", "relevant": ["hobbies/book-notes.md"], "evidence": {"hobbies/book-notes.md": "such as doing two minutes of stretching right after brushing teeth"}},
++  {"category": "paraphrase", "split": "test", "query": "Which position on the neck should the clamp go for Slow Rain?", "relevant": ["hobbies/guitar-chords.txt"], "evidence": {"hobbies/guitar-chords.txt": "capo on the 2nd fret"}}
++]
+diff --git a/eval/retrieval_eval.py b/eval/retrieval_eval.py
+index 088462d..3268abf 100644
+--- a/eval/retrieval_eval.py
++++ b/eval/retrieval_eval.py
+@@ -37,6 +37,7 @@ class Query:
+     text: str
+     relevant: tuple[str, ...]
+     category: str | None = None
++    split: str | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -144,9 +145,12 @@ def load_dataset(path: str | Path, root: Path) -> list[Query]:
+         category = item.get("category")
+         if "category" in item and (not isinstance(category, str) or not category.strip()):
+             problems.append(f"{label}: 'category' must be a non-empty string when present")
++        split = item.get("split")
++        if "split" in item and (not isinstance(split, str) or not split.strip()):
++            problems.append(f"{label}: 'split' must be a non-empty string when present")
+ 
+         if len(problems) == before:
+-            queries.append(Query(text.strip(), tuple(relevant), category))
++            queries.append(Query(text.strip(), tuple(relevant), category, split))
+     if problems:
+         raise DatasetError(problems)
+     return queries
+@@ -471,14 +475,25 @@ def _version(package: str) -> str:
+ 
+ 
+ def environment_info(
+-    model: str, settings, queries_path: str | Path, corpus_path: str | Path, root: Path, queries: Sequence[Query]
++    model: str,
++    settings,
++    queries_path: str | Path,
++    corpus_path: str | Path,
++    root: Path,
++    queries: Sequence[Query],
++    split: str | None = None,
+ ) -> dict:
+     """Everything needed to tell whether two runs are comparable."""
+     return {
+         "model": model,
+         "chunk_words": settings.chunk_words,
+         "overlap_words": settings.overlap_words,
+-        "dataset": {"path": str(queries_path), "queries": len(queries), "sha256": dataset_fingerprint(queries_path)},
++        "dataset": {
++            "path": str(queries_path),
++            "queries": len(queries),
++            "split": split,
++            "sha256": dataset_fingerprint(queries_path),
++        },
+         "corpus": {
+             "path": str(corpus_path),
+             "files": sum(1 for p in root.rglob("*") if p.is_file()),
+@@ -494,12 +509,16 @@ def environment_info(
+     }
+ 
+ 
++def _split_note(dataset: dict) -> str:
++    return ", split " + dataset["split"] if dataset.get("split") else ""
++
++
+ def format_environment(info: dict) -> list[str]:
+     v, d, c = info["versions"], info["dataset"], info["corpus"]
+     return [
+         f"model:    {info['model']}",
+         f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
+-        f"dataset:  {d['path']}  ({d['queries']} queries, sha256 {d['sha256'][:12]})",
++        f"dataset:  {d['path']}  ({d['queries']} queries{_split_note(d)}, sha256 {d['sha256'][:12]})",
+         f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
+         f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",
+         f"platform: {info['platform']}",
+diff --git a/eval/run_eval.py b/eval/run_eval.py
+index 5c5218d..884a7ad 100644
+--- a/eval/run_eval.py
++++ b/eval/run_eval.py
+@@ -12,6 +12,9 @@ first relevant document. Use `--model hash` for a fast, lexical-only baseline th
+ Every run starts by printing what it ran on: the model, chunk settings, library versions, and content hashes of
+ the corpus and the query file, so two runs can be compared. `--json FILE` writes the same record plus all metrics.
+ 
++Selecting: `--split NAME` keeps only queries whose optional `split` field matches (the held-out set uses
++dev and test).
++
+ Reports: `--by-category` breaks results down by each query's optional `category` field. `--show-misses` lists, per
+ mode, every query whose first relevant document is not the top result.
+ 
+@@ -119,6 +122,7 @@ def main() -> int:
+     parser.add_argument("--corpus", required=True)
+     parser.add_argument("--queries", required=True)
+     parser.add_argument("--model", default="BAAI/bge-small-en-v1.5")
++    parser.add_argument("--split", help="only use queries whose optional `split` field equals this (dev or test)")
+     parser.add_argument("--by-category", action="store_true", help="also report metrics per query category")
+     parser.add_argument("--show-misses", action="store_true", help="list queries whose first relevant hit isn't rank 1")
+     parser.add_argument("--json", metavar="FILE", help="also write the run record and all metrics to FILE")
+@@ -132,6 +136,12 @@ def main() -> int:
+         queries = load_dataset(args.queries, root)
+     except DatasetError as exc:
+         return _fail(f"invalid evaluation dataset ({args.queries})", exc.problems)
++    if args.split:
++        available = sorted({q.split for q in queries if q.split})
++        queries = [q for q in queries if q.split == args.split]
++        if not queries:
++            known = ", ".join(available) or "none"
++            return _fail("no queries selected", [f"no query has split {args.split!r} (available: {known})"])
+     thresholds = None
+     if args.thresholds:
+         try:
+@@ -143,7 +153,7 @@ def main() -> int:
+ 
+     embedder = get_embedder(args.model)
+     settings = Settings(model=args.model)
+-    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries)
++    info = environment_info(args.model, settings, args.queries, args.corpus, root, queries, args.split)
+     print("\n".join(format_environment(info)) + "\n")
+     if thresholds is not None:
+         stale = provenance_problems(thresholds.meta, info)
+diff --git a/tests/test_benchmark.py b/tests/test_benchmark.py
+index 2ca82f7..8ea20f1 100644
+--- a/tests/test_benchmark.py
++++ b/tests/test_benchmark.py
+@@ -5,7 +5,9 @@ composition (size, formats, shared names, near-duplicates, long documents, query
+ relevance judgment is backed by an exact phrase from the document it names.
+ """
+ 
++import hashlib
+ import json
++import re
+ import sys
+ import unittest
+ from collections import Counter, defaultdict
+@@ -192,3 +194,79 @@ class BenchmarkTests(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++
++# -- the held-out paraphrase set (queries-v2.json) -----------------------------------------------------------------
++
++QUERIES_V2 = BENCH / "queries-v2.json"
++STOPWORDS = {
++    "the", "and", "for", "are", "was", "were", "with", "that", "this", "from", "not", "but", "has", "have", "had",
++    "you", "your", "our", "can", "how", "what", "when", "where", "which", "who", "why", "does", "did", "any", "into",
++    "than", "then", "its", "there", "about", "would", "should", "will", "one", "all", "also", "may", "per", "too",
++    "very", "shouldn",
++}  # fmt: skip
++
++
++def content_words(text: str) -> set[str]:
++    """Alphabetic words of three letters or more that are not stopwords; numbers are deliberately ignored."""
++    return {w for w in re.findall(r"[a-z]+", text.lower()) if len(w) > 2 and w not in STOPWORDS}
++
++
++def split_for(path: str) -> str:
++    """Deterministic dev/test assignment from the first relevant path, so nobody chooses which queries are held out."""
++    return "dev" if int(hashlib.sha256(path.encode("utf-8")).hexdigest()[0], 16) % 2 == 0 else "test"
++
++
++class HeldOutSetTests(unittest.TestCase):
++    """Rules fixed before any search was run, so the set cannot be shaped by how an algorithm performs on it."""
++
++    @classmethod
++    def setUpClass(cls):
++        cls.raw = json.loads(QUERIES_V2.read_text(encoding="utf-8"))
++        cls.v1 = {norm(item["query"]) for item in json.loads(QUERIES.read_text(encoding="utf-8"))}
++        cls.text = {}
++        for path in sorted(p for p in CORPUS.rglob("*") if p.is_file()):
++            cls.text[path.relative_to(CORPUS).as_posix()] = norm(" ".join(s.text for s in extract(path)))
++
++    def test_loads_with_the_evaluator_validation(self):
++        queries = load_dataset(QUERIES_V2, CORPUS.resolve())
++        self.assertEqual(len(queries), len(self.raw))
++        self.assertEqual({q.category for q in queries}, {"paraphrase"})
++        self.assertTrue(all(q.split in {"dev", "test"} for q in queries))
++
++    def test_every_document_is_the_answer_to_at_least_one_question(self):
++        covered = {path for item in self.raw for path in item["relevant"]}
++        missing = sorted(set(self.text) - covered)
++        self.assertEqual(missing, [], "documents with no question: add one, do not skip hard ones")
++
++    def test_relevance_is_exactly_the_evidence_and_the_evidence_is_in_the_document(self):
++        for item in self.raw:
++            self.assertEqual(set(item["relevant"]), set(item["evidence"]), item["query"])
++            for path, phrase in item["evidence"].items():
++                self.assertIn(norm(phrase), self.text[path], f"{item['query']!r}: {path}")
++
++    def test_questions_share_no_content_word_with_their_evidence(self):
++        for item in self.raw:
++            for path, phrase in item["evidence"].items():
++                shared = content_words(item["query"]) & content_words(phrase)
++                self.assertEqual(shared, set(), f"{item['query']!r} repeats words from its answer in {path}")
++
++    def test_split_follows_the_hash_rule(self):
++        for item in self.raw:
++            self.assertEqual(item["split"], split_for(item["relevant"][0]), item["query"])
++
++    def test_both_splits_are_populated(self):
++        counts = Counter(item["split"] for item in self.raw)
++        self.assertGreaterEqual(counts["dev"], 20)
++        self.assertGreaterEqual(counts["test"], 20)
++
++    def test_questions_are_unique_and_new(self):
++        texts = [norm(item["query"]) for item in self.raw]
++        self.assertEqual(len(texts), len(set(texts)))
++        self.assertEqual(set(texts) & self.v1, set(), "a question repeats one from benchmark v1")
++
++    def test_the_rule_helpers_behave(self):
++        self.assertEqual(content_words("How do I fix the 2025 tax errors?"), {"fix", "tax", "errors"})
++        self.assertEqual(content_words("It is 42"), set())
++        self.assertTrue({split_for(name) for name in ("a.md", "b.md", "c.md", "d.md")} <= {"dev", "test"})
++        self.assertEqual(split_for("housing/notes.md"), split_for("housing/notes.md"))
+diff --git a/tests/test_eval.py b/tests/test_eval.py
+index 106dfaf..7e2b00e 100644
+--- a/tests/test_eval.py
++++ b/tests/test_eval.py
+@@ -69,6 +69,16 @@ class EvalBase(unittest.TestCase):
+             load_dataset(self.dataset(content), self.root)
+         return ctx.exception.problems
+ 
++    def run_cli(self, queries_path, corpus=None, thresholds=None, extra=()):
++        command = [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(corpus or self.root),
++                   "--queries", str(queries_path), "--model", "hash"]  # fmt: skip
++        command += list(extra)
++        if thresholds is not None:
++            path = self.dir / "thresholds.json"
++            path.write_text(thresholds if isinstance(thresholds, str) else json.dumps(thresholds), encoding="utf-8")
++            command += ["--thresholds", str(path)]
++        return subprocess.run(command, capture_output=True, text=True, cwd=REPO)
++
+ 
+ class DatasetValidationTests(EvalBase):
+     def assertRejected(self, content, fragment):
+@@ -276,6 +286,42 @@ class TraceTests(EvalBase):
+         self.assertLess(len(format_miss(trace)[0]), 140)
+ 
+ 
++class SplitTests(EvalBase):
++    DATA = [
++        {"query": "tax invoice deadlines", "relevant": ["work/notes.md"], "split": "dev"},
++        {"query": "bicycle chain tire", "relevant": ["notes.md"], "split": "test"},
++        {"query": "flour ratios", "relevant": ["recipes/notes.md"], "split": "dev"},
++        {"query": "no split here", "relevant": ["notes.md"]},
++    ]
++
++    def test_split_is_optional_and_loaded(self):
++        queries = load_dataset(self.dataset(self.DATA), self.root)
++        self.assertEqual([q.split for q in queries], ["dev", "test", "dev", None])
++
++    def test_invalid_split_is_rejected(self):
++        for bad in ("", " ", 1, None):
++            with self.subTest(split=bad):
++                found = "\n".join(self.problems([{"query": "q", "relevant": ["notes.md"], "split": bad}]))
++                self.assertIn("'split' must be a non-empty string", found)
++
++    def test_cli_selects_one_split_and_says_so(self):
++        result = self.run_cli(self.dataset(self.DATA), extra=["--split", "dev"])
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertIn("(2 queries, split dev,", result.stdout)
++
++    def test_cli_rejects_an_unknown_or_empty_split(self):
++        result = self.run_cli(self.dataset(self.DATA), extra=["--split", "holdout"])
++        self.assertEqual(result.returncode, 2)
++        self.assertIn("available: dev, test", result.stderr)
++        self.assertNotIn("Traceback", result.stderr)
++        self.assertNotIn("Indexed", result.stdout)
++
++    def test_without_split_all_queries_run(self):
++        result = self.run_cli(self.dataset(self.DATA))
++        self.assertIn("(4 queries,", result.stdout)
++        self.assertNotIn("split", result.stdout.split("Indexed")[0].split("dataset:")[1].split("\n")[0])
++
++
+ class IndexedCheckTests(EvalBase):
+     def test_unindexed_relevant_document_is_rejected(self):
+         write(self.root / "data.xyz", "unsupported suffix, never indexed")
+@@ -647,16 +693,6 @@ class GateAcceptanceTests(EvalBase):
+ 
+ 
+ class CliTests(EvalBase):
+-    def run_cli(self, queries_path, corpus=None, thresholds=None, extra=()):
+-        command = [sys.executable, str(REPO / "eval" / "run_eval.py"), "--corpus", str(corpus or self.root),
+-                   "--queries", str(queries_path), "--model", "hash"]  # fmt: skip
+-        command += list(extra)
+-        if thresholds is not None:
+-            path = self.dir / "thresholds.json"
+-            path.write_text(thresholds if isinstance(thresholds, str) else json.dumps(thresholds), encoding="utf-8")
+-            command += ["--thresholds", str(path)]
+-        return subprocess.run(command, capture_output=True, text=True, cwd=REPO)
+-
+     def shipped(self, thresholds):
+         return self.run_cli(REPO / "eval" / "queries.json", REPO / "examples" / "corpus", thresholds)
+ 

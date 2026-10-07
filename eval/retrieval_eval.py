@@ -37,6 +37,7 @@ class Query:
     text: str
     relevant: tuple[str, ...]
     category: str | None = None
+    split: str | None = None
 
 
 @dataclass(frozen=True)
@@ -144,9 +145,12 @@ def load_dataset(path: str | Path, root: Path) -> list[Query]:
         category = item.get("category")
         if "category" in item and (not isinstance(category, str) or not category.strip()):
             problems.append(f"{label}: 'category' must be a non-empty string when present")
+        split = item.get("split")
+        if "split" in item and (not isinstance(split, str) or not split.strip()):
+            problems.append(f"{label}: 'split' must be a non-empty string when present")
 
         if len(problems) == before:
-            queries.append(Query(text.strip(), tuple(relevant), category))
+            queries.append(Query(text.strip(), tuple(relevant), category, split))
     if problems:
         raise DatasetError(problems)
     return queries
@@ -401,6 +405,61 @@ def provenance_problems(meta: dict, info: dict) -> list[str]:
     return problems
 
 
+# -- search tuning (evaluation experiments) ------------------------------------------------------------------------
+
+
+class TuningError(DatasetError):
+    """The --tuning specification is unusable."""
+
+
+_TUNING_OPTIONS = {
+    "rrf_k": ("int, at least 1", lambda v: int(v), lambda v: v >= 1),
+    "vector_weight": ("number above 0", lambda v: float(v), lambda v: 0 < v < math.inf),
+    "keyword_weight": ("number above 0", lambda v: float(v), lambda v: 0 < v < math.inf),
+    "keyword_limit": ("int, at least 1", lambda v: int(v), lambda v: v >= 1),
+    "drop_stopwords": ("true or false", lambda v: {"true": True, "false": False}[v.lower()], lambda v: True),
+}
+
+
+def parse_tuning(spec: str | None) -> dict:
+    """Parse "rrf_k=10,vector_weight=2" into Searcher keyword arguments; None or "" means the shipped defaults."""
+    if not spec or not spec.strip():
+        return {}
+    tuning: dict = {}
+    seen: set[str] = set()
+    problems: list[str] = []
+    for part in spec.split(","):
+        name, separator, raw = (piece.strip() for piece in part.partition("="))
+        if not separator or not raw:
+            problems.append(f"{part.strip()!r}: expected name=value")
+        elif name not in _TUNING_OPTIONS:
+            problems.append(f"unknown option {name!r} (expected one of: {', '.join(_TUNING_OPTIONS)})")
+        elif name in seen:
+            problems.append(f"{name} is given more than once")
+        else:
+            seen.add(name)
+            description, convert, valid = _TUNING_OPTIONS[name]
+            try:
+                value = convert(raw)
+            except (ValueError, KeyError):
+                problems.append(f"{name}: {raw!r} is not valid ({description})")
+                continue
+            if valid(value):
+                tuning[name] = value
+            else:
+                problems.append(f"{name}: {raw!r} is not valid ({description})")
+    if problems:
+        raise TuningError(problems)
+    return tuning
+
+
+def format_tuning(tuning: dict) -> str:
+    def show(value) -> str:
+        return str(value).lower() if isinstance(value, bool) else str(value)
+
+    return ", ".join(f"{name}={show(value)}" for name, value in tuning.items())
+
+
 # -- reporting: misses and run record --------------------------------------------------------
 
 
@@ -426,6 +485,26 @@ def trace_queries(searcher, queries: Sequence[Query], root: Path, mode: str, lim
 def misses(traces: Iterable[Trace]) -> list[Trace]:
     """Queries whose first relevant document is not the top result."""
     return [t for t in traces if t.first_rank != 1]
+
+
+def per_query_records(searcher, queries: Sequence[Query], root: Path, mode: str, ks: Sequence[int] = KS) -> list[dict]:
+    """One record per query: where the first relevant document landed and each query's own metrics.
+
+    These are what paired comparisons are built from; averages alone cannot say whether two runs differ by chance.
+    """
+    records = []
+    for trace in trace_queries(searcher, queries, root, mode, limit=max(ks)):
+        score = score_query(list(trace.ranked), trace.query.relevant, ks)
+        records.append(
+            {
+                "query": trace.query.text,
+                "category": trace.query.category,
+                "first_rank": trace.first_rank,
+                **{f"recall@{k}": value for k, value in score.recall.items()},
+                "rr": score.reciprocal_rank,
+            }
+        )
+    return records
 
 
 def format_miss(trace: Trace, limit: int = max(KS), width: int = 72) -> list[str]:
@@ -471,14 +550,27 @@ def _version(package: str) -> str:
 
 
 def environment_info(
-    model: str, settings, queries_path: str | Path, corpus_path: str | Path, root: Path, queries: Sequence[Query]
+    model: str,
+    settings,
+    queries_path: str | Path,
+    corpus_path: str | Path,
+    root: Path,
+    queries: Sequence[Query],
+    split: str | None = None,
+    tuning: dict | None = None,
 ) -> dict:
     """Everything needed to tell whether two runs are comparable."""
     return {
         "model": model,
+        "tuning": dict(tuning or {}),
         "chunk_words": settings.chunk_words,
         "overlap_words": settings.overlap_words,
-        "dataset": {"path": str(queries_path), "queries": len(queries), "sha256": dataset_fingerprint(queries_path)},
+        "dataset": {
+            "path": str(queries_path),
+            "queries": len(queries),
+            "split": split,
+            "sha256": dataset_fingerprint(queries_path),
+        },
         "corpus": {
             "path": str(corpus_path),
             "files": sum(1 for p in root.rglob("*") if p.is_file()),
@@ -494,12 +586,17 @@ def environment_info(
     }
 
 
+def _split_note(dataset: dict) -> str:
+    return ", split " + dataset["split"] if dataset.get("split") else ""
+
+
 def format_environment(info: dict) -> list[str]:
     v, d, c = info["versions"], info["dataset"], info["corpus"]
     return [
         f"model:    {info['model']}",
         f"chunking: {info['chunk_words']} words, {info['overlap_words']} overlap",
-        f"dataset:  {d['path']}  ({d['queries']} queries, sha256 {d['sha256'][:12]})",
+        *([f"tuning:   {format_tuning(info['tuning'])}"] if info.get("tuning") else []),
+        f"dataset:  {d['path']}  ({d['queries']} queries{_split_note(d)}, sha256 {d['sha256'][:12]})",
         f"corpus:   {c['path']}  ({c['files']} files, sha256 {c['sha256'][:12]})",
         f"versions: python {v['python']}, localseek {v['localseek']}, fastembed {v['fastembed']}, numpy {v['numpy']}",
         f"platform: {info['platform']}",

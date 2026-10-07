@@ -22,6 +22,20 @@
   from a recorded baseline by a documented rule. The benchmark ships `baselines/hash.json` and `thresholds-hash.json`.
 - CI: the pull-request workflow now runs the hash-embedder retrieval gate on every operating system, and a manual
   "Model evaluation" workflow runs the real model against thresholds derived from its baseline.
+- Eval: held-out paraphrase set `eval/benchmark/queries-v2.json` (61 questions, one per document, no shared content
+  words with their answers, fixed dev/test split by path hash) with a documented protocol for testing search changes,
+  and a `--split` option. The optional `split` field is validated and shown in the run header.
+- Search: `Searcher` accepts opt-in fusion options (`vector_weight`, `keyword_weight`, `keyword_limit`,
+  `drop_stopwords`, in addition to the existing `rrf_k`) for evaluation experiments. The defaults are the shipped
+  behaviour, which a test checks against the recorded baseline; nothing in the `localseek` command uses the options.
+- Eval: `--tuning` for run_eval, `compare_runs.py`, `run_candidates.py`, and the pre-registered fusion experiment in
+  `eval/benchmark/experiments.md` (candidates, decision rule and a single-use test split, fixed before any run).
+- Eval: `eval/benchmark/queries-v3.json` (v2 unchanged plus a second question for every document: 119 questions, 47 dev
+  and 72 test) with the same rules, an added check that no quote appears in an unlisted document, and
+  `eval/make_review_sheet.py` for independent review of the relevance judgments.
+- Eval: `--json` records now include every query's own outcome, and `compare_runs.py` prints paired comparisons
+  (wins/losses/ties, exact sign test, bootstrap interval for the MRR difference) and `--versus-arm`. Records made
+  before this change have no per-query data and must be recorded again to get paired statistics.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

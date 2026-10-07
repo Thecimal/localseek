@@ -149,6 +149,13 @@ class BenchmarkTests(unittest.TestCase):
                 holders = {r for r, t in self.text.items() if norm(phrase) in t}
                 self.assertLessEqual(holders, set(item["relevant"]), f"{item['query']!r}: {phrase!r} also in {holders}")
 
+    def test_every_evidence_quote_fits_inside_one_chunk(self):
+        # A quote that straddles a chunk boundary could never appear in a snippet, which would skew answer-in-snippet.
+        for item in self.raw:
+            for path, phrase in item["evidence"].items():
+                fits = any(norm(phrase) in chunk for chunk in self.chunks[path])
+                self.assertTrue(fits, f"{item['query']!r}: the quote is split across chunks of {path}")
+
     def test_late_answers_are_not_in_the_first_two_chunks(self):
         for item in self.raw:
             if item["category"] != "late_answer":
@@ -231,8 +238,14 @@ class HeldOutSetTests(unittest.TestCase):
         cls.raw = json.loads(cls.FILE.read_text(encoding="utf-8"))
         cls.v1 = {norm(item["query"]) for item in json.loads(QUERIES.read_text(encoding="utf-8"))}
         cls.text = {}
+        cls.chunks = {}
+        settings = Settings()
         for path in sorted(p for p in CORPUS.rglob("*") if p.is_file()):
-            cls.text[path.relative_to(CORPUS).as_posix()] = norm(" ".join(s.text for s in extract(path)))
+            sections = extract(path)
+            rel = path.relative_to(CORPUS).as_posix()
+            cls.text[rel] = norm(" ".join(s.text for s in sections))
+            chunks = chunk_sections(sections, settings.chunk_words, settings.overlap_words)
+            cls.chunks[rel] = [norm(c.text) for c in chunks]
 
     def test_loads_with_the_evaluator_validation(self):
         queries = load_dataset(self.FILE, CORPUS.resolve())
@@ -263,6 +276,12 @@ class HeldOutSetTests(unittest.TestCase):
                 holders = {path for path, text in self.text.items() if norm(phrase) in text}
                 message = f"{item['query']!r}: {phrase!r} is also in {holders}"
                 self.assertLessEqual(holders, set(item["relevant"]), message)
+
+    def test_every_evidence_quote_fits_inside_one_chunk(self):
+        for item in self.raw:
+            for path, phrase in item["evidence"].items():
+                fits = any(norm(phrase) in chunk for chunk in self.chunks[path])
+                self.assertTrue(fits, f"{item['query']!r}: the quote is split across chunks of {path}")
 
     def test_split_follows_the_hash_rule(self):
         for item in self.raw:

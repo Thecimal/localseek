@@ -154,6 +154,30 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
     --split dev --show-misses --json eval/benchmark/baselines/bge-v3-dev.json
 ```
 
+### What the user is shown (`--snippets`)
+
+Finding the right file is not the same as showing the answer. A result is the best-ranked chunk of a file, and its
+snippet is a 280-character window cut from that chunk, anchored on the first query word found in it. When the question
+shares no word with the chunk (the paraphrase case) the window simply starts at the beginning of the chunk, so the
+answer can be in the chunk and still not on screen. For query files with evidence quotes, `run_eval.py --snippets`
+(and every `--json` record) reports, per mode:
+
+* **right file @1**: the top result is a relevant document;
+* **answer in chunk @1**: the top result is a relevant document and the chunk it came from contains that document's
+  quote (the engine found the right passage, whatever it displays);
+* **answer in snippet @1** and **in a top-5 snippet**: the displayed text of a relevant document contains its quote.
+
+A few cautions. The match is an exact, case- and whitespace-insensitive substring of the quote, so it measures "the
+quoted fact is visible", not "a reader could find the answer". The quotes are short fragments chosen by the
+benchmark's author, and a snippet can answer the question in other words and still count as a miss. A test checks that
+every quote lies inside a single chunk, so no quote is unreachable. The metric is new and has no thresholds yet;
+record a baseline first.
+
+```bash
+python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/queries-v3.json \
+    --split dev --snippets
+```
+
 ### Tools for experiments
 
 * `run_eval.py --tuning rrf_k=10,keyword_limit=20,...` runs hybrid search with experimental fusion settings

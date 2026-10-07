@@ -21,8 +21,9 @@ take part in fusion) and drop_stopwords (true or false). The settings are printe
 Selecting: `--split NAME` keeps only queries whose optional `split` field matches (the held-out set uses
 dev and test).
 
-Reports: `--by-category` breaks results down by each query's optional `category` field. `--show-misses` lists, per
-mode, every query whose first relevant document is not the top result.
+Reports: `--snippets` shows how often the displayed snippet actually contains the answer, for query files with
+evidence quotes. `--by-category` breaks results down by each query's optional `category` field. `--show-misses`
+lists, per mode, every query whose first relevant document is not the top result.
 
 Quality gate: pass `--thresholds FILE` to fail when a metric falls below its required minimum.
 
@@ -56,6 +57,7 @@ from retrieval_eval import (
     TuningError,
     check_gate,
     check_indexed,
+    corpus_chunk_texts,
     count_checks,
     environment_info,
     evaluate,
@@ -69,6 +71,7 @@ from retrieval_eval import (
     per_query_records,
     provenance_problems,
     result_record,
+    snippet_summary,
     trace_queries,
 )
 
@@ -104,6 +107,16 @@ def _print_by_category(per_mode: dict, queries) -> None:
         print(f"{name:<{width}}{count:<5}{cells}")
 
 
+def _print_snippets(summaries: dict) -> None:
+    first = next(iter(summaries.values()))
+    print(f"\nAnswer shown to the user ({first['queries']} questions with evidence)")
+    columns = [("mode", 9), ("right file @1", 16), ("answer in chunk @1", 21), ("answer in snippet @1", 23)]
+    print("".join(f"{title:<{width}}" for title, width in columns) + "answer in a top-5 snippet")
+    for mode, s in summaries.items():
+        print(f"{mode:<9}{s['right_file@1']:<16.2f}{s.get('chunk_has_answer@1', float('nan')):<21.2f}"
+              f"{s['shows_answer@1']:<23.2f}{s['shows_answer@5']:.2f}")  # fmt: skip
+
+
 def _print_misses(searcher, queries, root) -> dict:
     print("\nMisses: queries whose first relevant document is not the top result")
     recorded = {}
@@ -133,6 +146,8 @@ def main() -> int:
     parser.add_argument("--model", default="BAAI/bge-small-en-v1.5")
     parser.add_argument("--split", help="only use queries whose optional `split` field equals this (dev or test)")
     parser.add_argument("--tuning", help="experimental search settings, e.g. rrf_k=10,keyword_limit=20 (see below)")
+    parser.add_argument("--snippets", action="store_true",
+                        help="report whether the file, chunk and displayed snippet contain the answer (needs evidence)")
     parser.add_argument("--by-category", action="store_true", help="also report metrics per query category")
     parser.add_argument("--show-misses", action="store_true", help="list queries whose first relevant hit isn't rank 1")
     parser.add_argument("--json", metavar="FILE", help="also write the run record and all metrics to FILE")
@@ -197,8 +212,21 @@ def main() -> int:
                 print(f"{row}{result.mrr:<7.2f}{result.latency_ms:.1f} ms/query")
             record["indexed"] = {"files": stats.scanned, "chunks": stats.chunks}
             record["results"] = {mode: result_record(r) for mode, r in results.items()}
-            if args.json:
-                record["per_query"] = {mode: per_query_records(searcher, queries, root, mode) for mode in MODES}
+            if args.json or args.snippets:
+                has_evidence = any(q.evidence for q in queries)
+                chunk_texts = corpus_chunk_texts(root, settings) if has_evidence else None
+                per_query = {
+                    mode: per_query_records(searcher, queries, root, mode, chunk_texts=chunk_texts) for mode in MODES
+                }
+                summaries = {mode: snippet_summary(rows) for mode, rows in per_query.items()}
+                if args.json:
+                    record["per_query"] = per_query
+                    if has_evidence:
+                        record["snippets"] = summaries
+                if args.snippets and has_evidence:
+                    _print_snippets(summaries)
+                elif args.snippets:
+                    print("\n--snippets needs evidence quotes in the query file; this one has none.")
             if args.by_category or args.json or (thresholds is not None and thresholds.by_category):
                 per_mode = _by_category(searcher, queries, root)
                 record["by_category"] = {

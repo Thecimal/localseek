@@ -18,8 +18,11 @@ import re
 import time
 from importlib import metadata
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
+
+from localseek.chunker import chunk_sections
+from localseek.extractors import extract, supported_suffixes
 
 KS = (1, 5, 10)
 
@@ -38,6 +41,7 @@ class Query:
     relevant: tuple[str, ...]
     category: str | None = None
     split: str | None = None
+    evidence: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -145,12 +149,20 @@ def load_dataset(path: str | Path, root: Path) -> list[Query]:
         category = item.get("category")
         if "category" in item and (not isinstance(category, str) or not category.strip()):
             problems.append(f"{label}: 'category' must be a non-empty string when present")
+        evidence = item.get("evidence", {})
+        if "evidence" in item:
+            if not isinstance(evidence, dict) or not evidence or not all(
+                isinstance(k, str) and isinstance(v, str) and v.strip() for k, v in evidence.items()
+            ):
+                problems.append(f"{label}: 'evidence' must map relevant paths to non-empty quotes")
+            elif isinstance(relevant, list) and not set(evidence) <= set(relevant):
+                problems.append(f"{label}: 'evidence' names a document that is not in 'relevant'")
         split = item.get("split")
         if "split" in item and (not isinstance(split, str) or not split.strip()):
             problems.append(f"{label}: 'split' must be a non-empty string when present")
 
         if len(problems) == before:
-            queries.append(Query(text.strip(), tuple(relevant), category, split))
+            queries.append(Query(text.strip(), tuple(relevant), category, split, dict(evidence)))
     if problems:
         raise DatasetError(problems)
     return queries
@@ -470,15 +482,18 @@ class Trace:
     query: Query
     ranked: tuple[str, ...]
     first_rank: int | None  # 1-based; None when no relevant document was returned
+    snippets: tuple[str, ...] = ()  # the text shown for each ranked hit
+    chunks: tuple[int, ...] = ()  # the chunk ordinal each ranked hit came from
 
 
 def trace_queries(searcher, queries: Sequence[Query], root: Path, mode: str, limit: int = max(KS)) -> list[Trace]:
     traces = []
     for query in queries:
-        ranked = tuple(relative_path(h.path, root) for h in searcher.search(query.text, limit=limit, mode=mode))
+        hits = searcher.search(query.text, limit=limit, mode=mode)
+        ranked = tuple(relative_path(h.path, root) for h in hits)
         wanted = set(query.relevant)
         first = next((rank for rank, path in enumerate(ranked, start=1) if path in wanted), None)
-        traces.append(Trace(query, ranked, first))
+        traces.append(Trace(query, ranked, first, tuple(h.snippet for h in hits), tuple(h.chunk for h in hits)))
     return traces
 
 
@@ -487,23 +502,98 @@ def misses(traces: Iterable[Trace]) -> list[Trace]:
     return [t for t in traces if t.first_rank != 1]
 
 
-def per_query_records(searcher, queries: Sequence[Query], root: Path, mode: str, ks: Sequence[int] = KS) -> list[dict]:
+def _norm(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def corpus_chunk_texts(root: Path, settings) -> dict[str, list[str]]:
+    """Every document's chunks, normalised, exactly as the indexer would cut them (index = chunk ordinal)."""
+    texts: dict[str, list[str]] = {}
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in supported_suffixes()):
+        try:
+            sections = extract(path)
+        except Exception:  # noqa: BLE001 - an unreadable file simply has no chunks to compare with
+            continue
+        chunks = chunk_sections(sections, settings.chunk_words, settings.overlap_words)
+        texts[path.relative_to(root).as_posix()] = [_norm(c.text) for c in chunks]
+    return texts
+
+
+def answer_outcomes(trace: Trace, chunk_texts: dict[str, list[str]] | None = None) -> dict | None:
+    """Whether what the user is shown contains the answer; None when the query carries no evidence quotes.
+
+    shows_answer@k: among the first k hits, a relevant document whose displayed snippet contains its quote.
+    chunk_has_answer@1: the top hit is a relevant document and the chunk it came from contains the quote
+    (the engine found the right passage, whatever the snippet shows). Needs chunk_texts.
+    """
+    quotes = {path: _norm(quote) for path, quote in trace.query.evidence.items()}
+    if not quotes:
+        return None
+
+    def shows(index: int) -> bool:
+        path = trace.ranked[index]
+        return path in quotes and quotes[path] in _norm(trace.snippets[index])
+
+    outcomes = {
+        "shows_answer@1": bool(trace.ranked) and shows(0),
+        "shows_answer@5": any(shows(i) for i in range(min(5, len(trace.ranked)))),
+    }
+    if chunk_texts is not None:
+        in_chunk = False
+        if trace.ranked and trace.ranked[0] in quotes and trace.chunks:
+            chunks, ordinal = chunk_texts.get(trace.ranked[0], []), trace.chunks[0]
+            in_chunk = 0 <= ordinal < len(chunks) and quotes[trace.ranked[0]] in chunks[ordinal]
+        outcomes["chunk_has_answer@1"] = in_chunk
+    return outcomes
+
+
+def snippet_summary(records: Sequence[dict]) -> dict | None:
+    """Rates over the queries that have evidence; None when none do."""
+    rated = [r for r in records if "shows_answer@1" in r]
+    if not rated:
+        return None
+
+    def rate(test) -> float:
+        return sum(1 for r in rated if test(r)) / len(rated)
+
+    summary = {
+        "queries": len(rated),
+        "right_file@1": rate(lambda r: r["first_rank"] == 1),
+        "shows_answer@1": rate(lambda r: r["shows_answer@1"]),
+        "shows_answer@5": rate(lambda r: r["shows_answer@5"]),
+    }
+    if all("chunk_has_answer@1" in r for r in rated):
+        summary["chunk_has_answer@1"] = rate(lambda r: r["chunk_has_answer@1"])
+    return summary
+
+
+def per_query_records(
+    searcher,
+    queries: Sequence[Query],
+    root: Path,
+    mode: str,
+    ks: Sequence[int] = KS,
+    chunk_texts: dict[str, list[str]] | None = None,
+) -> list[dict]:
     """One record per query: where the first relevant document landed and each query's own metrics.
 
     These are what paired comparisons are built from; averages alone cannot say whether two runs differ by chance.
+    Queries with evidence quotes also record whether the answer was shown (see answer_outcomes).
     """
     records = []
     for trace in trace_queries(searcher, queries, root, mode, limit=max(ks)):
         score = score_query(list(trace.ranked), trace.query.relevant, ks)
-        records.append(
-            {
-                "query": trace.query.text,
-                "category": trace.query.category,
-                "first_rank": trace.first_rank,
-                **{f"recall@{k}": value for k, value in score.recall.items()},
-                "rr": score.reciprocal_rank,
-            }
-        )
+        record = {
+            "query": trace.query.text,
+            "category": trace.query.category,
+            "first_rank": trace.first_rank,
+            **{f"recall@{k}": value for k, value in score.recall.items()},
+            "rr": score.reciprocal_rank,
+        }
+        outcomes = answer_outcomes(trace, chunk_texts)
+        if outcomes is not None:
+            record.update(outcomes)
+        records.append(record)
     return records
 
 

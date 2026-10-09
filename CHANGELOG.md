@@ -39,6 +39,9 @@
 - Eval: `--snippets` and the `--json` record report whether the answer is in the top result's chunk and in the displayed
   snippet (`shows_answer@1`, `shows_answer@5`, `chunk_has_answer@1`) for query files with evidence quotes. Query files
   may now carry an optional, validated `evidence` field. A test checks that every benchmark quote fits inside one chunk.
+- Eval: pre-registered snippet-selection experiment (`eval/benchmark/snippet-experiment.md`, `eval/snippet_experiment.py`):
+  five candidate ways to choose the displayed window, a decision rule with a wide-window control, evaluated on
+  (question, document) pairs given the correct chunk, with no model needed. The result is not yet recorded.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

@@ -167,6 +167,10 @@ answer can be in the chunk and still not on screen. For query files with evidenc
   quote (the engine found the right passage, whatever it displays);
 * **answer in snippet @1** and **in a top-5 snippet**: the displayed text of a relevant document contains its quote.
 
+The display loses answers that retrieval found: with the real model on the v3 dev questions about a quarter of the
+correct top results show text without the answer. `snippet-experiment.md` pre-registers a model-free experiment on how
+the window is chosen (`snippet_experiment.py`); read its disclosure that no independent confirmation data exists.
+
 A few cautions. The match is an exact, case- and whitespace-insensitive substring of the quote, so it measures "the
 quoted fact is visible", not "a reader could find the answer". The quotes are short fragments chosen by the
 benchmark's author, and a snippet can answer the question in other words and still count as a miss. A test checks that

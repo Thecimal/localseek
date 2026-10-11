@@ -25,7 +25,7 @@ jobs:
           pip install numpy pypdf pytest ruff
           pip install -e . --no-deps
       - name: Lint
-        run: ruff check src tests eval
+        run: ruff check .
       - name: Test
         run: pytest -q
       # Deterministic retrieval-quality gate: fails the build if search quality drops below the recorded floors.

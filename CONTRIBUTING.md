@@ -27,6 +27,6 @@ The tests use a built-in hashing embedder, so they run without downloading a mod
 - **Nothing leaves the machine.** Do not add code that sends document text, queries, or file names over the network.
   The only allowed network use is the one-time model download in `embedder.py`.
 - Keep dependencies small. Prefer the standard library when it is good enough.
-- Add or update tests for behaviour changes. `ruff check src tests eval` should pass.
+- Add or update tests for behaviour changes. `ruff check .` should pass.
 - Changing chunking or the default model can change retrieval quality, so run `eval/run_eval.py` before and after and
   include the numbers in your pull request.

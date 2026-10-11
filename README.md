@@ -183,7 +183,7 @@ version; `eval/derive_thresholds.py` builds a file from a recorded baseline by a
 ```bash
 pip install -e ".[dev]"
 pytest
-ruff check src tests eval
+ruff check .
 ```
 
 ## License

@@ -1,6 +1,6 @@
 # Snippet-selection experiment (pre-registered)
 
-**Status: not yet run.** Commit this file before running the experiment. At the time of writing no candidate other
+**Status: run; S4 was selected, as a proposal only (see Results).** Commit this file before running the experiment. At the time of writing no candidate other
 than the shipped function (S0) has been run on any data, by the author or anyone else; git history is the record.
 
 ## Question
@@ -93,4 +93,39 @@ It needs no model and is deterministic. The JSON keeps every pair's outcome for 
 
 ## Results
 
-Not yet recorded.
+Run with the command above (no model, deterministic) on 192 (question, document) pairs whose correct chunk is longer
+than 280 characters: 101 from `queries.json` and 91 from `queries-v3.json`. The per-pair outcomes are in
+`experiments/snippets.json`.
+
+| Id | Width | All (192) | `queries.json` (101) | of which `late_answer` (9) | `queries-v3.json` (91) | Wins/losses vs S0 | p | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| S0 | 280 | 142 | 83 | 1 | 59 | - | - | baseline |
+| S1 | 280 | 140 | 87 | 3 | 53 | 7/9 | 0.804 | not eligible: net -2 |
+| S2 | 280 | 145 | 90 | 5 | 55 | 13/10 | 0.678 | not eligible: net +3 |
+| S3 | 420 | 178 | 98 | 9 | 80 | 40/4 | < 0.001 | not eligible: 4 losses, at most 3 allowed |
+| S4 | 420 | 168 | 90 | 3 | 78 | 26/0 | < 0.001 | eligible |
+
+**Outcome: S4 is selected, as a proposal only.** It is the only eligible candidate (net +26, p < 0.001, no losses), so
+the control rule has nothing to compare it with. The shipped snippet is unchanged.
+
+### Observations made after the decision (post-hoc; they did not influence it)
+
+* The width did the work, not the anchor. S4 anchors exactly like S0 and gains 26 pairs without losing any, while S1 and
+  S2, which change the anchor at 280 characters, are not clearly better than S0 (net -2 and +3, p 0.80 and 0.68).
+* S4's gain appears in both sets: 83 to 90 of 101 on `queries.json` and 59 to 78 of 91 on `queries-v3.json`. The
+  pre-registration says a different anchor cannot systematically help v3's paraphrases; a wider window can, because it
+  covers more of the chunk. This is an inference, not a tested result.
+* S3 (the S2 window at 420 characters) shows the answer on 178 pairs to S4's 168, and on all 9 `late_answer` pairs, but
+  it loses 4 pairs to S0, one more than the rule allows. Under the rule it is not eligible and cannot be selected
+  after the fact. Whether a smarter anchor adds anything on top of a wide window is a question for a new
+  pre-registration with its own candidate ids.
+* Even with S4, 24 of the 192 pairs still do not show the answer.
+
+### What this does not decide
+
+* The disclosure above stands: there is no untouched data, so the size of the improvement is likely overstated.
+* Every pair is given its correct chunk. The effect on real searches, where the top result is sometimes the wrong
+  chunk, is not measured here.
+* S4 uses 1.5 times the screen space of the current window.
+* Adopting S4 means changing `make_snippet`, re-running `run_eval.py --snippets` with the real model, validating on
+  newly written questions with answers deep in long documents, and checking the CLI and web output.

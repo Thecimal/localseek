@@ -41,7 +41,8 @@
   may now carry an optional, validated `evidence` field. A test checks that every benchmark quote fits inside one chunk.
 - Eval: pre-registered snippet-selection experiment (`eval/benchmark/snippet-experiment.md`, `eval/snippet_experiment.py`):
   five candidate ways to choose the displayed window, a decision rule with a wide-window control, evaluated on
-  (question, document) pairs given the correct chunk, with no model needed. The result is not yet recorded.
+  (question, document) pairs given the correct chunk, with no model needed. Result: S4, the wide-window control (420 instead of 280 characters), was the only candidate that met
+  the rule; it is recorded as a proposal and the shipped snippet is unchanged.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
 
 ## 0.1.0

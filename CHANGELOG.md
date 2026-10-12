@@ -44,6 +44,10 @@
   (question, document) pairs given the correct chunk, with no model needed. Result: S4, the wide-window control (420 instead of 280 characters), was the only candidate that met
   the rule; it is recorded as a proposal and the shipped snippet is unchanged.
 - Eval: logic moved to `eval/retrieval_eval.py` and covered by `tests/test_eval.py`.
+- MCP: new `localseek mcp` command, a read-only Model Context Protocol server on stdio with two tools, `search` and
+  `status`, so an AI assistant can search the local index. It needs the optional `mcp` package
+  (`pip install "localseek[mcp]"`), loads the embedding model on the first search, and notices files indexed by
+  another process while it runs.
 
 ## 0.1.0
 

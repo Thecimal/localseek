@@ -25,6 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+mcp = ["mcp>=2,<3"]
 
 [project.scripts]
 localseek = "localseek.cli:main"

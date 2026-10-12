@@ -172,6 +172,18 @@ def cmd_serve(ctx: Context, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mcp(ctx: Context, args: argparse.Namespace) -> int:
+    from .mcp_server import IndexTools, McpUnavailable, run_stdio
+
+    # stdout carries the protocol here, so nothing in this command may print to it.
+    try:
+        run_stdio(IndexTools(ctx.store, ctx.search_embedder))
+    except McpUnavailable as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="localseek", description="Private, on-device semantic search for your documents."
@@ -215,6 +227,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("serve", help="start the local search page on 127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("mcp", help="run a read-only MCP server on stdio so an AI assistant can search the index")
+    p.set_defaults(func=cmd_mcp)
     return parser
 
 

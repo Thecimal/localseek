@@ -54,8 +54,30 @@ localseek serve                      # local search page at http://127.0.0.1:876
 | `forget PATH` | Stop tracking a folder and remove its files from the index. |
 | `watch` | Keep the index fresh by re-scanning every 30 seconds (`--interval N`). |
 | `serve` | Start a small search page bound to `127.0.0.1` only. |
+| `mcp` | Run a read-only MCP server on stdio so an AI assistant can search your index. Needs `pip install "localseek[mcp]"`. |
 
 Global options: `--db PATH`, `--config PATH`, `--model NAME`.
+
+## Use with an AI assistant (MCP)
+
+`localseek mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio, so an assistant can
+search your index. It is read-only: it offers two tools, `search` and `status`, and nothing that indexes, changes or
+deletes anything.
+
+```bash
+pip install "localseek[mcp]"
+localseek index ~/Documents                  # build the index first
+claude mcp add localseek -- localseek mcp    # Claude Code
+```
+
+Any other MCP host that can launch a stdio server takes the same command, `localseek mcp`; put `--db PATH` before
+`mcp` to use a specific index. If localseek lives in a virtual environment, give the host the full path to the
+`localseek` executable. The server keeps running, notices files you index afterwards (for example with `watch`), and
+loads the embedding model on the first search.
+
+Everything stays on your computer until a search returns: the file paths and text snippets that match are handed to
+the assistant you connect, and from there to whatever model it uses. Connect only assistants you trust with the
+contents of the folders you indexed.
 
 ## Supported files
 
@@ -174,14 +196,13 @@ version; `eval/derive_thresholds.py` builds a file from a recorded baseline by a
 - OCR for scanned PDFs and images
 - Optional cross-encoder reranker for better top results
 - Approximate nearest-neighbour index for very large collections
-- MCP server so AI assistants can search your local index
 - Optional local-LLM answers on top of retrieved passages
 - Editor plugins (Obsidian, VS Code)
 
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,mcp]"
 pytest
 ruff check .
 ```

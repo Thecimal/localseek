@@ -1,4 +1,5 @@
 import inspect
+import random
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,6 +45,21 @@ class SnippetWidthTests(unittest.TestCase):
         # this default would make the two identical and the recorded result impossible to reproduce.
         self.assertEqual(inspect.signature(make_snippet).parameters["width"].default, 280)
         self.assertEqual(SNIPPET_WIDTH, 420)
+
+    def test_the_wider_window_never_hides_what_the_narrower_one_showed(self):
+        # This is why no question can lose its answer when the width grows. Both windows are cut from the same start
+        # and the wider one only continues further (or shows the whole text), so whatever the narrow snippet contains
+        # is inside the wide one. A change to how the window is anchored would break this on purpose: it would need
+        # its own experiment, because it could make a result lose its answer.
+        rng = random.Random(20261012)
+        vocabulary = [f"w{i}" for i in range(40)]
+        for _ in range(500):
+            words = [rng.choice(vocabulary) for _ in range(rng.randint(1, 160))]
+            text = "  ".join(words)  # irregular spacing exercises the whitespace normalisation
+            terms = rng.sample(vocabulary, rng.randint(0, 3)) + ["absent"]
+            narrow = make_snippet(text, terms).strip("…")
+            wide = make_snippet(text, terms, width=SNIPPET_WIDTH).strip("…")
+            self.assertIn(narrow, wide, (text, terms))
 
 
 if __name__ == "__main__":

@@ -152,7 +152,8 @@ fall on `queries.json`.
 | `queries.json` (97) | vector | 69 to 74 | 79 to 85 |
 | `queries.json` (97) | keyword | 68 to 70 | 75 to 81 |
 
-No question lost the answer in any cell. "Answer in chunk @1", what the engine found, did not change anywhere, as it
+No question lost the answer in any cell. That is guaranteed by construction, not only observed: the wider window is
+cut from the same start as the narrower one and only continues further, and a test checks this on random texts. "Answer in chunk @1", what the engine found, did not change anywhere, as it
 should not: only the displayed text did. The sign tests are descriptive and not corrected for the number of
 comparisons, and they do not settle whether the gains are more than chance: hybrid @1 gained 2 and lost 0 on the v3 dev
 questions (p = 0.50) and gained 6 and lost 0 on `queries.json` (p = 0.031).

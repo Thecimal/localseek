@@ -174,7 +174,7 @@ class EndToEndTests(Base):
         self.assertEqual(observed, (1, True, True))
 
     def test_the_right_file_and_chunk_can_still_show_the_wrong_part(self):
-        # The only query word sits at the very start; the snippet is a 280-character window from there.
+        # The only query word sits at the very start; the snippet is a window of SNIPPET_WIDTH characters from there.
         record = self.records("zebrafish")
         observed = (record["first_rank"], record["chunk_has_answer@1"], record["shows_answer@1"])
         self.assertEqual(observed, (1, True, False))

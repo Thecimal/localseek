@@ -157,7 +157,7 @@ python eval/run_eval.py --corpus eval/benchmark/corpus --queries eval/benchmark/
 ### What the user is shown (`--snippets`)
 
 Finding the right file is not the same as showing the answer. A result is the best-ranked chunk of a file, and its
-snippet is a 280-character window cut from that chunk, anchored on the first query word found in it. When the question
+snippet is a 420-character window (280 before the snippet experiment's S4 was adopted) cut from that chunk, anchored on the first query word found in it. When the question
 shares no word with the chunk (the paraphrase case) the window simply starts at the beginning of the chunk, so the
 answer can be in the chunk and still not on screen. For query files with evidence quotes, `run_eval.py --snippets`
 (and every `--json` record) reports, per mode:
@@ -167,9 +167,11 @@ answer can be in the chunk and still not on screen. For query files with evidenc
   quote (the engine found the right passage, whatever it displays);
 * **answer in snippet @1** and **in a top-5 snippet**: the displayed text of a relevant document contains its quote.
 
-The display loses answers that retrieval found: with the real model on the v3 dev questions about a quarter of the
-correct top results show text without the answer. `snippet-experiment.md` pre-registers a model-free experiment on how
+The display loses answers that retrieval found: with the real model and the earlier 280-character window, on the v3 dev questions about a quarter of the
+correct top results showed text without the answer (5 of 19 hybrid, 6 of 27 vector); with the current
+420-character window it is 3 of 19 and 3 of 27. `snippet-experiment.md` pre-registers a model-free experiment on how
 the window is chosen (`snippet_experiment.py`); read its disclosure that no independent confirmation data exists.
+The result, and the adoption of the 420-character window, are recorded there.
 
 A few cautions. The match is an exact, case- and whitespace-insensitive substring of the quote, so it measures "the
 quoted fact is visible", not "a reader could find the answer". The quotes are short fragments chosen by the

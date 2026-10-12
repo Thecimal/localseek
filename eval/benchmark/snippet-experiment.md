@@ -129,3 +129,37 @@ the control rule has nothing to compare it with. The shipped snippet is unchange
 * S4 uses 1.5 times the screen space of the current window.
 * Adopting S4 means changing `make_snippet`, re-running `run_eval.py --snippets` with the real model, validating on
   newly written questions with answers deep in long documents, and checking the CLI and web output.
+
+### Adoption: end-to-end check with the real model
+
+S4 is now what search shows: `Searcher` passes `SNIPPET_WIDTH = 420` to `make_snippet`, whose own default stays at 280, so
+S0 above still means the function as it was and this experiment can be re-run unchanged. The check this section asks
+for was made before the change was committed, with `BAAI/bge-small-en-v1.5` (fastembed 0.8.1) in one environment for
+both runs, on the same questions the experiment used, so it is not independent confirmation. The records are
+`experiments/snippet-adoption-before-*.json` and `experiments/snippet-adoption-after-*.json`, for the v3 dev questions
+and for `queries.json`.
+
+Three rules were fixed before the runs, and all three held: rankings identical in every mode (only the displayed text
+may change); no question loses a result it had; hybrid answer-in-snippet @1 gains on the v3 dev questions and does not
+fall on `queries.json`.
+
+| Questions | Mode | Answer in snippet @1 | Answer in a top-5 snippet |
+|---|---|---|---|
+| v3 dev (47) | hybrid | 14 to 16 | 26 to 28 |
+| v3 dev (47) | vector | 21 to 24 | 32 to 37 |
+| v3 dev (47) | keyword | 8 to 8 | 15 to 16 |
+| `queries.json` (97) | hybrid | 70 to 76 | 78 to 84 |
+| `queries.json` (97) | vector | 69 to 74 | 79 to 85 |
+| `queries.json` (97) | keyword | 68 to 70 | 75 to 81 |
+
+No question lost the answer in any cell. "Answer in chunk @1", what the engine found, did not change anywhere, as it
+should not: only the displayed text did. The sign tests are descriptive and not corrected for the number of
+comparisons, and they do not settle whether the gains are more than chance: hybrid @1 gained 2 and lost 0 on the v3 dev
+questions (p = 0.50) and gained 6 and lost 0 on `queries.json` (p = 0.031).
+
+The longest snippet line in the command-line output grew from 285 to 425 characters (the terminal wraps it), and the
+search page shows the snippet in a normal paragraph with no fixed height or truncation.
+
+The disclosure above still applies: there was no untouched data, so this shows that the wider window displays the right
+passage more often, not how much it helps on new questions. Before the change is gated or described as an improvement
+it needs the validation on newly written questions with deep answers that the disclosure asks for.

@@ -11,6 +11,11 @@ from .embedder import Embedder
 from .store import Store
 
 MODES = ("hybrid", "vector", "keyword")
+
+# How much of a result's passage is shown. 420 is candidate S4 of the pre-registered snippet experiment
+# (eval/benchmark/snippet-experiment.md). make_snippet keeps its own default of 280, so the experiment's S0
+# stays reproducible.
+SNIPPET_WIDTH = 420
 _TOKEN = re.compile(r"\w+", re.UNICODE)
 
 
@@ -166,7 +171,7 @@ class Searcher:
                 Hit(
                     path=row["path"],
                     score=round(fused[chunk_id] / best_possible, 4),
-                    snippet=make_snippet(row["text"], terms),
+                    snippet=make_snippet(row["text"], terms, SNIPPET_WIDTH),
                     page=row["page"],
                     heading=row["heading"],
                     chunk=row["ordinal"],

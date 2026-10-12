@@ -56,6 +56,12 @@
   Before, its search by meaning kept using the vectors loaded at the first query until the server was restarted, so a
   new file could rank below unrelated ones. `Store.refresh_if_changed()` does the check, and the MCP server uses it
   too instead of reaching into the store's cache.
+- Search results now show up to 420 characters of the matching passage instead of 280 (`SNIPPET_WIDTH` in `search.py`),
+  the wide-window control (S4) of the pre-registered snippet experiment. On the benchmark with the real model, rankings
+  are unchanged and, for hybrid search, the answer became visible in the top result's snippet for 6 more of 97 questions
+  (2 more of 47 on the v3 dev questions), with none lost. This was measured on the same questions the experiment used,
+  so the effect on new questions is not yet established. `make_snippet` keeps its 280 default so the experiment can be
+  reproduced.
 
 ## 0.1.0
 

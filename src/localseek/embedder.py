@@ -7,10 +7,13 @@ purely lexical stand-in used by the tests and for quick offline experiments.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from typing import Protocol
 
 import numpy as np
+
+from .config import data_dir
 
 
 class EmbedderUnavailable(RuntimeError):
@@ -58,7 +61,7 @@ class HashEmbedder:
 class FastEmbedEmbedder:
     """Wraps the `fastembed` library. The model is downloaded once, then cached on disk."""
 
-    def __init__(self, model_name: str, batch_size: int = 32) -> None:
+    def __init__(self, model_name: str, batch_size: int = 32, cache_dir: str | None = None) -> None:
         try:
             from fastembed import TextEmbedding
         except ImportError as exc:
@@ -68,7 +71,7 @@ class FastEmbedEmbedder:
         self.name = model_name
         self._batch_size = batch_size
         try:
-            self._model = TextEmbedding(model_name=model_name)
+            self._model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
         except Exception as exc:
             raise EmbedderUnavailable(
                 f"Could not load model '{model_name}': {exc}. "
@@ -89,7 +92,18 @@ class FastEmbedEmbedder:
         return self._run([f"query: {text}" if self._e5 else text])[0]
 
 
+def model_cache_dir() -> str | None:
+    """Where downloaded models are kept: a `models` folder inside localseek's data folder.
+
+    fastembed's own default is a folder in the system temp directory, which the operating system clears, so the model
+    would be downloaded again. None means "let fastembed decide", which is what FASTEMBED_CACHE_PATH asks for.
+    """
+    if os.environ.get("FASTEMBED_CACHE_PATH"):
+        return None
+    return str(data_dir() / "models")
+
+
 def get_embedder(model: str) -> Embedder:
     if model.lower().startswith("hash"):
         return HashEmbedder()
-    return FastEmbedEmbedder(model)
+    return FastEmbedEmbedder(model, cache_dir=model_cache_dir())

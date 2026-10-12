@@ -20,7 +20,9 @@ $ localseek search who promised to fix the radiators
 
 - Your documents, queries, and file names are never sent anywhere. The test suite fails if indexing or search open a
   network connection.
-- The embedding model (about 100 MB) is downloaded **once**, on first use, and cached on disk. After that, localseek
+- The embedding model (about 100 MB) is downloaded **once**, on first use, and cached on disk in localseek's data folder
+  (`~/.local/share/localseek/models` on Linux and macOS, `%LOCALAPPDATA%\localseek\models` on Windows; set
+  `FASTEMBED_CACHE_PATH` to keep it elsewhere). After that, localseek
   works fully offline. To be strict about it, download the model once, then set `HF_HUB_OFFLINE=1`.
 - The index is a single SQLite file on your machine. It contains chunks of your document text, so treat it with the
   same care as the documents themselves.

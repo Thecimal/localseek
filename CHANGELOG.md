@@ -48,6 +48,10 @@
   `status`, so an AI assistant can search the local index. It needs the optional `mcp` package
   (`pip install "localseek[mcp]"`), loads the embedding model on the first search, and notices files indexed by
   another process while it runs.
+- Fix: the embedding model is now cached in localseek's data folder (`models`, next to the default index) instead of
+  fastembed's default, a folder in the system temp directory that the operating system clears, which made localseek
+  download the model again after a reboot. `FASTEMBED_CACHE_PATH` still overrides the location. The first run after
+  this change downloads the model once more into the new folder.
 
 ## 0.1.0
 

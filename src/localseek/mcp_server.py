@@ -48,13 +48,9 @@ class IndexTools:
         self._lock = threading.Lock()
         self._searcher: Searcher | None = None
         self._model: str | None = None
-        self._data_version: int | None = None
 
     def _current_searcher(self) -> Searcher:
-        version = self.store.conn.execute("PRAGMA data_version").fetchone()[0]
-        if version != self._data_version:
-            self.store._matrix = None  # the cached vectors predate a write made by another process
-            self._data_version = version
+        self.store.refresh_if_changed()  # `watch` or `index` may have written in another process
         model = self.store.get_meta("model")
         if self._searcher is None or model != self._model:
             self._searcher = Searcher(self.store, self._embedder_factory())

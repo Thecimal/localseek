@@ -168,6 +168,7 @@ def make_handler(searcher: Searcher, nonce: str, allowed_hosts: set[str]):
                 ftype = params.get("type", [None])[0]
                 try:
                     with lock:
+                        searcher.store.refresh_if_changed()  # files indexed by another process while we run
                         hits = searcher.search(query, limit=limit, ftype=ftype)
                 except Exception as exc:  # report the problem to the page, keep serving
                     self._json(500, {"error": str(exc)})

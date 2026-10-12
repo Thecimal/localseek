@@ -71,9 +71,24 @@ class Store:
         except sqlite3.OperationalError as exc:
             raise RuntimeError(f"Could not initialise the index (is FTS5 available?): {exc}") from exc
         self._matrix: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+        self._data_version: int = self.conn.execute("PRAGMA data_version").fetchone()[0]
 
     def close(self) -> None:
         self.conn.close()
+
+    def refresh_if_changed(self) -> bool:
+        """Forget the cached vectors if another connection has changed the database since the last check.
+
+        This store resets its own cache whenever it writes, but a long-running reader (the search page, the MCP
+        server) would otherwise keep searching the vectors it loaded at its first query while `watch` or `index`
+        runs in another process. Returns True when a change by someone else was noticed.
+        """
+        version = self.conn.execute("PRAGMA data_version").fetchone()[0]
+        if version == self._data_version:
+            return False
+        self._data_version = version
+        self._matrix = None
+        return True
 
     # -- metadata -------------------------------------------------------------------------
 

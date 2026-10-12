@@ -52,6 +52,10 @@
   fastembed's default, a folder in the system temp directory that the operating system clears, which made localseek
   download the model again after a reboot. `FASTEMBED_CACHE_PATH` still overrides the location. The first run after
   this change downloads the model once more into the new folder.
+- Fix: `localseek serve` now notices files that another process (`watch` or `index`) adds to the index while it runs.
+  Before, its search by meaning kept using the vectors loaded at the first query until the server was restarted, so a
+  new file could rank below unrelated ones. `Store.refresh_if_changed()` does the check, and the MCP server uses it
+  too instead of reaching into the store's cache.
 
 ## 0.1.0
 

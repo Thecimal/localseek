@@ -62,6 +62,11 @@
   (2 more of 47 on the v3 dev questions), with none lost. This was measured on the same questions the experiment used,
   so the effect on new questions is not yet established. `make_snippet` keeps its 280 default so the experiment can be
   reproduced.
+- Eval: `compare_runs.py` now also compares whether the answer is shown to the user, per search mode, for runs recorded
+  with `run_eval.py --snippets`: paired wins, losses and ties with an exact sign test for answer in snippet @1 and @5
+  and answer in chunk @1, and how many questions' first relevant result changed rank (0 when only the displayed text
+  changed).
+- README: says how large an MCP reply can get.
 
 ## 0.1.0
 

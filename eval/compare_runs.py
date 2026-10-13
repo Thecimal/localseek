@@ -10,6 +10,10 @@ The rule for hybrid search (see eval/benchmark/experiments.md): recall@1 must ri
 (0.08 on dev, 0.06 on test, chosen with --rule), MRR must rise, and recall@5 must not fall. Meeting it is
 necessary, not sufficient: the candidate must also pass the v1 gates and, once, the test split.
 
+Runs recorded with `run_eval.py --snippets` also get a paired comparison of whether the answer is shown to the user
+(per search mode), together with how many questions' first relevant result changed rank. That count is 0 when only
+the displayed text changed, as with a different snippet width.
+
 Exit status: 0 success, 2 runs that cannot be compared or unreadable files.
 """
 
@@ -137,6 +141,60 @@ def paired_rows(title: str, rows: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
+MODES = ("hybrid", "vector", "keyword")
+SNIPPET_METRICS = ("shows_answer@1", "shows_answer@5", "chunk_has_answer@1")
+
+
+def _per_query(run: dict, mode: str, field: str) -> dict:
+    """question text -> value, for the questions that have this field (those without evidence lack snippet fields)."""
+    return {row["query"]: row[field] for row in run.get("per_query", {}).get(mode, []) if field in row}
+
+
+def snippet_pairs(base: dict, other: dict, mode: str, metric: str) -> list[tuple[float, float]]:
+    """Each question's answer outcome in two runs, for the questions that have it in both."""
+    x, y = _per_query(base, mode, metric), _per_query(other, mode, metric)
+    return [(x[q], y[q]) for q in x if q in y]
+
+
+def ranking_changes(base: dict, other: dict, mode: str) -> int | None:
+    """How many questions' first relevant result landed at a different rank; None when there is nothing to compare."""
+    x, y = _per_query(base, mode, "first_rank"), _per_query(other, mode, "first_rank")
+    common = x.keys() & y.keys()
+    return sum(x[q] != y[q] for q in common) if common else None
+
+
+def has_snippet_data(run: dict) -> bool:
+    return any(_per_query(run, mode, SNIPPET_METRICS[0]) for mode in MODES)
+
+
+def snippet_block(names: list[str], runs: dict, mode: str) -> list[str]:
+    """The answer-shown comparison of each candidate with the baseline for one mode; empty when not every run has it."""
+    base = runs[names[0]]
+    rows = []
+    for name in names[1:]:
+        summaries = {}
+        for metric in SNIPPET_METRICS:
+            pairs = snippet_pairs(base, runs[name], mode, metric)
+            if not pairs:
+                break
+            summaries[metric] = summarize_pairs(pairs)
+        else:
+            rows.append((Path(name).stem, summaries, ranking_changes(base, runs[name], mode)))
+    if not rows:
+        return []
+    shown1 = rows[0][1]["shows_answer@1"]
+    width = max(28, *(len(label) + 2 for label, _, _ in rows))  # a long run name must not run into the next column
+    head = (f"{'run':<{width}}{'ranks changed':<15}{'shown @1 w/l/t':<16}{'p':<8}{'shown @5 w/l/t':<16}{'p':<8}"
+            f"{'in chunk @1 w/l/t':<19}p")  # fmt: skip
+    lines = [f"Answer shown to the user: {mode}, {shown1['n']} questions with evidence "
+             "(w/l/t = candidate better / worse / same)", head]  # fmt: skip
+    for label, s, changed in rows:
+        a, b, c = (s[m] for m in SNIPPET_METRICS)
+        lines.append(f"{label:<{width}}{'-' if changed is None else changed:<15}{_wlt(a):<16}{a['p']:<8.3f}"
+                     f"{_wlt(b):<16}{b['p']:<8.3f}{_wlt(c):<19}{c['p']:.3f}")  # fmt: skip
+    return lines
+
+
 def has_per_query(run: dict) -> bool:
     return all(mode in run.get("per_query", {}) for mode in ("hybrid", "vector"))
 
@@ -219,6 +277,16 @@ def print_pairs(args: argparse.Namespace, runs: dict) -> int:
             print()
             print("\n".join(paired_rows(f"Paired comparison with the baseline: hybrid, {size} questions "
                                          "(w/l/t = candidate better / worse / same)", rows)))  # fmt: skip
+        if args.candidates:
+            printed = False
+            for mode in MODES:
+                block = snippet_block(names, runs, mode)
+                if block:
+                    printed = True
+                    print()
+                    print("\n".join(block))
+            if not printed and any(has_snippet_data(runs[n]) for n in names):
+                print("\nSnippet comparison skipped: not every run was recorded with --snippets.")
         if args.versus_arm:
             rows = []
             for n in names:

@@ -75,7 +75,9 @@ claude mcp add localseek -- localseek mcp    # Claude Code
 Any other MCP host that can launch a stdio server takes the same command, `localseek mcp`; put `--db PATH` before
 `mcp` to use a specific index. If localseek lives in a virtual environment, give the host the full path to the
 `localseek` executable. The server keeps running, notices files you index afterwards (for example with `watch`), and
-loads the embedding model on the first search.
+loads the embedding model on the first search. A search returns at most 50 results (`limit`, 10 by default) of up
+to 420 characters of text each, so the snippet text of one reply stays under about 21,000 characters; ask for fewer
+results to keep it smaller.
 
 Everything stays on your computer until a search returns: the file paths and text snippets that match are handed to
 the assistant you connect, and from there to whatever model it uses. Connect only assistants you trust with the

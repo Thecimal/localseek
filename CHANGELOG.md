@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0
+
 - **Breaking (eval dataset format):** `eval/queries.json` entries now use `"relevant": ["path/relative/to/corpus.md"]`
   (a list, one or more documents) instead of `"expected": "file-name.md"`. Matching by file name alone could count an
   unrelated file with the same name as a correct result. Old files are rejected with a message explaining the change;
@@ -67,6 +69,9 @@
   and answer in chunk @1, and how many questions' first relevant result changed rank (0 when only the displayed text
   changed).
 - README: says how large an MCP reply can get.
+- Packaging: the license is declared as an SPDX expression (`license = "MIT"` and `license-files`) instead of the
+  deprecated table and classifier, which setuptools stops supporting on 2027-02-18. Building now needs setuptools 77
+  or newer, which pip fetches on its own.
 
 ## 0.1.0
 
